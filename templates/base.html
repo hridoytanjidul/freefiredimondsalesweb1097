@@ -47,6 +47,7 @@
       <a class="desk" href="{{ url_for('leaderboard') }}">Leaderboard</a>
       <a class="desk" href="{{ url_for('contact') }}">Contact Us</a>
       {% if U %}
+        {% if U.is_admin %}<a class="admin-chip" href="{{ url_for('admin.dashboard') }}" title="Admin Panel">{{ icon('settings') }} <span class="admin-chip-text">Admin Panel</span></a>{% endif %}
         <a class="wallet-chip" href="{{ url_for('add_wallet') }}" title="Add Money">{{ icon('wallet') }} {{ U.balance|money }}</a>
         <div class="account">
           <button class="account-btn" type="button" aria-haspopup="true">

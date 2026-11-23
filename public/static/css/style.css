@@ -105,6 +105,12 @@ p { margin: 0 0 .75em; }
   border: 1px solid var(--primary-100);
 }
 .wallet-chip:hover { text-decoration: none; background: var(--primary-100); }
+/* shown only to admins, so the admin panel is one tap away */
+.main-nav > a.admin-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px;
+  background: #1f2937; color: #fff; font-weight: 700; font-size: 14px;
+}
+.main-nav > a.admin-chip:hover { background: #111827; color: #fff; text-decoration: none; }
 .account { position: relative; }
 .account-btn {
   display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: #fff;
@@ -478,6 +484,8 @@ body.has-bottom-nav { padding-bottom: 68px; }
 @media (max-width: 899px) {
   .main-nav > a.desk { display: none; }
   .account-btn .name { display: none; }
+  .main-nav > a.admin-chip { padding: 8px 9px; }
+  .admin-chip .admin-chip-text { display: none; }
 }
 @media (max-width: 599px) {
   .slider.is-default { aspect-ratio: auto; height: 210px; }

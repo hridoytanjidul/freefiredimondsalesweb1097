@@ -1,7 +1,6 @@
 instance/
-static/uploads/*
-!static/uploads/.gitkeep
 __pycache__/
 *.pyc
 .venv/
 .env
+.vercel

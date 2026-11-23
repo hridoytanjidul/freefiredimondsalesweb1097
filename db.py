@@ -1,11 +1,21 @@
-"""Database access, wallet ledger, settings and first-run seed data."""
+"""Database access, wallet ledger, settings and first-run seed data.
+
+Uses SQLite (a file in instance/) by default. When DATABASE_URL points at Postgres
+(e.g. Neon on Vercel), the same SQL runs there through pg.py.
+"""
+import hashlib
 import os
 import sqlite3
 from contextlib import contextmanager
 
 from flask import current_app, g
 
+import pg
+
 SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.sql")
+
+# Catch this instead of sqlite3.IntegrityError so both databases are handled.
+IntegrityError = (sqlite3.IntegrityError, pg.IntegrityError)
 
 
 class InsufficientBalance(Exception):
@@ -15,6 +25,9 @@ class InsufficientBalance(Exception):
 # --------------------------------------------------------------------------- connection
 
 def connect(path):
+    """Open the database: a SQLite file path, or a postgres:// URL."""
+    if pg.is_pg_url(path):
+        return pg.connect(path)
     # isolation_level=None -> autocommit; multi-statement writes use tx() explicitly.
     conn = sqlite3.connect(path, isolation_level=None, timeout=15)
     conn.row_factory = sqlite3.Row
@@ -310,19 +323,63 @@ def _slugify(text):
     return s or "item"
 
 
+def _schema_sql():
+    with open(SCHEMA_PATH, encoding="utf-8") as f:
+        return f.read()
+
+
+def schema_version():
+    """Changes whenever the schema or migrations change, so Postgres re-runs setup only then."""
+    text = _schema_sql() + repr(COLUMN_MIGRATIONS) + repr(INDEX_MIGRATIONS) + pg.FUNCTIONS_SQL
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
 def init_db(path):
+    if pg.is_pg_url(path):
+        return _init_pg(path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     conn = connect(path)
     try:
         conn.execute("PRAGMA journal_mode = WAL")
-        with open(SCHEMA_PATH, encoding="utf-8") as f:
-            conn.executescript(f.read())
+        conn.executescript(_schema_sql())
         _migrate(conn)
         seeded = conn.execute("SELECT value FROM settings WHERE key = '_seeded'").fetchone()
         if not seeded:
             _seed(conn)
     finally:
         conn.close()
+
+
+def _init_pg(url):
+    """Create tables and seed data on Postgres. Runs on every cold start but only does work when
+    the schema changed. Everything happens in one transaction holding a lock, so two cold starts
+    can't race and a failure leaves nothing half-created (works with Neon's pooled URL too)."""
+    version = schema_version()
+    conn = connect(url)
+    try:
+        if _pg_version(conn) == version:
+            return
+        conn.execute("BEGIN")       # also takes the write lock (see pg.Connection.execute)
+        try:
+            if _pg_version(conn) != version:
+                conn.executescript(pg.FUNCTIONS_SQL + pg.translate_schema(_schema_sql()))
+                _migrate(conn)
+                if not conn.execute("SELECT value FROM settings WHERE key = '_seeded'").fetchone():
+                    _seed(conn, own_tx=False)
+                save_settings(conn, {"_schema_version": version})
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+        conn.execute("COMMIT")
+    finally:
+        conn.close()
+
+
+def _pg_version(conn):
+    if conn.execute("SELECT to_regclass('public.settings') AS t").fetchone()["t"] is None:
+        return None
+    row = conn.execute("SELECT value FROM settings WHERE key = '_schema_version'").fetchone()
+    return row["value"] if row else None
 
 
 # Columns added after the first release. Existing databases get them automatically.
@@ -348,17 +405,26 @@ INDEX_MIGRATIONS = [
 ]
 
 
+def _table_columns(conn, table):
+    if isinstance(conn, pg.Connection):
+        return {r["column_name"] for r in conn.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ?",
+            (table,))}
+    return {r["name"] for r in conn.execute("PRAGMA table_info(%s)" % table)}
+
+
 def _migrate(conn):
     for table, column, decl in COLUMN_MIGRATIONS:
-        cols = {r["name"] for r in conn.execute("PRAGMA table_info(%s)" % table)}
+        cols = _table_columns(conn, table)
         if column not in cols:
             conn.execute("ALTER TABLE %s ADD COLUMN %s %s" % (table, column, decl))
     for sql in INDEX_MIGRATIONS:
         conn.execute(sql)
 
 
-def _seed(conn):
-    conn.execute("BEGIN")
+def _seed(conn, own_tx=True):
+    if own_tx:
+        conn.execute("BEGIN")
     try:
         cat_ids = []
         for name, order in SEED_CATEGORIES:
@@ -394,7 +460,9 @@ def _seed(conn):
         for slug, (title, content) in DEFAULT_PAGES.items():
             conn.execute("INSERT INTO pages (slug, title, content) VALUES (?,?,?)", (slug, title, content.strip()))
         conn.execute("INSERT INTO settings (key, value) VALUES ('_seeded', '1')")
-        conn.execute("COMMIT")
+        if own_tx:
+            conn.execute("COMMIT")
     except BaseException:
-        conn.execute("ROLLBACK")
+        if own_tx:
+            conn.execute("ROLLBACK")
         raise

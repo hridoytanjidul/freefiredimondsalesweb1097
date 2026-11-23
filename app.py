@@ -5,12 +5,11 @@ Production:    gunicorn -w 2 -b 0.0.0.0:8000 app:app
 """
 import os
 import secrets
-import sqlite3
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
 import requests
-from flask import (Flask, abort, flash, g, jsonify, redirect, render_template, request,
+from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_template, request,
                    session, url_for)
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
@@ -20,7 +19,7 @@ import google_auth
 import payments
 from checkout import (CheckoutError, active_methods, place_order as checkout_order, settle_gateway_payment,
                       start_gateway_payment, validate_manual_payment)
-from db import close_db, get_settings, init_db, q, tx
+from db import IntegrityError, close_db, get_settings, init_db, q, tx
 from flashsale import has_visible_sales, visible_sales
 from helpers import (BD_PHONE_RE, EMAIL_RE, avatar_html, avatar_hue, bdtime, clean_digits, csrf_protect,
                      csrf_token, hash_password, icon, initials, login_required, money, safe_next,
@@ -30,10 +29,24 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSET_VERSION = "9"
 
 
+def database_target(instance_path):
+    """Postgres when DATABASE_URL is set (Vercel + Neon), otherwise a SQLite file in instance/."""
+    url = (os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or "").strip()
+    if url:
+        return url
+    if os.environ.get("VERCEL"):
+        # Vercel's disk is read-only and wiped between requests, so a SQLite file would lose every order.
+        raise RuntimeError("Set DATABASE_URL in Vercel to a Postgres database (for example Neon).")
+    return os.environ.get("DATABASE_PATH", os.path.join(instance_path, "topup.db"))
+
+
 def _secret_key(instance_path):
     key = os.environ.get("SECRET_KEY")
     if key:
         return key
+    if os.environ.get("VERCEL"):
+        raise RuntimeError("Set the SECRET_KEY environment variable in Vercel (Settings → Environment Variables).")
+    os.makedirs(instance_path, exist_ok=True)
     path = os.path.join(instance_path, "secret_key")
     if not os.path.exists(path):
         with open(path, "w") as f:
@@ -44,20 +57,19 @@ def _secret_key(instance_path):
 
 
 def create_app():
-    app = Flask(__name__, instance_path=os.path.join(BASE_DIR, "instance"))
-    os.makedirs(app.instance_path, exist_ok=True)
+    # Static files live in public/static: Vercel serves that folder from its CDN, Flask serves it locally.
+    app = Flask(__name__, instance_path=os.path.join(BASE_DIR, "instance"),
+                static_folder=os.path.join(BASE_DIR, "public", "static"), static_url_path="/static")
     app.config.update(
-        DATABASE=os.environ.get("DATABASE_PATH", os.path.join(app.instance_path, "topup.db")),
+        DATABASE=database_target(app.instance_path),
         SECRET_KEY=_secret_key(app.instance_path),
-        MAX_CONTENT_LENGTH=5 * 1024 * 1024,
-        UPLOAD_FOLDER=os.path.join(BASE_DIR, "static", "uploads"),
+        MAX_CONTENT_LENGTH=4 * 1024 * 1024,   # Vercel accepts request bodies up to 4.5 MB
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE") == "1",
+        SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE") == "1" or bool(os.environ.get("VERCEL")),
         PERMANENT_SESSION_LIFETIME=timedelta(days=30),
     )
-    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-    if os.environ.get("TRUST_PROXY") == "1":
+    if os.environ.get("TRUST_PROXY") == "1" or os.environ.get("VERCEL"):
         # behind nginx / Cloudflare / Render: trust X-Forwarded-* so https links are built correctly
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     init_db(app.config["DATABASE"])
@@ -83,6 +95,8 @@ def create_app():
 # =========================================================================== request lifecycle
 
 def load_request_state():
+    if request.endpoint in ("static", "media"):   # files: no settings or login needed
+        return
     g.settings = get_settings()
     g.user = None
     uid = session.get("uid")
@@ -153,6 +167,17 @@ def register_routes(app):
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return resp
+
+    @app.get("/media/<name>")
+    def media(name):
+        """Uploaded images are stored in the database (see helpers.save_upload)."""
+        row = q("SELECT mime, data FROM uploads WHERE name = ?", (name,), one=True)
+        if row is None:
+            abort(404)
+        resp = Response(bytes(row["data"]), mimetype=row["mime"])
+        # names are random and never reused, so browsers and the CDN can keep them for a year
+        resp.headers["Cache-Control"] = "public, max-age=31536000, s-maxage=31536000, immutable"
         return resp
 
     # ------------------------------------------------------------------ home & catalogue
@@ -400,7 +425,7 @@ def register_routes(app):
                 except CheckoutError as e:
                     flash(str(e), "error")
                     return redirect(url_for("add_wallet"))
-                except sqlite3.IntegrityError:
+                except IntegrityError:
                     flash("এই Transaction ID আগেই ব্যবহার করা হয়েছে।", "error")
                     return redirect(url_for("add_wallet"))
                 flash("Add Money রিকোয়েস্ট জমা হয়েছে। যাচাইয়ের পর ব্যালেন্স যোগ হবে।", "success")
@@ -484,7 +509,7 @@ def register_routes(app):
     def leaderboard():
         rows = q("SELECT u.name, u.avatar, SUM(o.price) AS total, COUNT(*) AS orders FROM orders o "
                  "JOIN users u ON u.id = o.user_id WHERE o.status = 'completed' "
-                 "GROUP BY o.user_id ORDER BY total DESC LIMIT 20")
+                 "GROUP BY u.id, u.name, u.avatar ORDER BY total DESC LIMIT 20")
         return render_template("leaderboard.html", rows=rows)
 
     @app.get("/free-fire-id-checker")
@@ -529,9 +554,11 @@ def register_routes(app):
             400: getattr(e, "description", None) or "অনুরোধটি সঠিক নয়।",
             403: "এই পেজ দেখার অনুমতি আপনার নেই।",
             404: "দুঃখিত, পেজটি খুঁজে পাওয়া যায়নি।",
-            413: "ফাইলটি অনেক বড় (সর্বোচ্চ 5MB)।",
+            413: "ফাইলটি অনেক বড় (সর্বোচ্চ 4MB)।",
             500: "সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।",
         }
+        if request.endpoint in ("static", "media"):   # a missing image/file: no need for a full page
+            return Response(messages.get(code, "Error"), status=code, mimetype="text/plain")
         if "settings" not in g:
             try:
                 load_request_state()

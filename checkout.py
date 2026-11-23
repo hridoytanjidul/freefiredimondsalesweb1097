@@ -1,13 +1,12 @@
 """Shared checkout logic used by normal products and flash sales:
 player-ID checks, manual Send Money checks, the UddoktaPay gateway, and order creation."""
-import sqlite3
 
 from flask import flash, g, redirect, request, url_for
 
 import coupons
 import payments
 from checkout_errors import CheckoutError
-from db import InsufficientBalance, cancel_order, credit, debit, deliver_voucher, get_db, q, tx
+from db import InsufficientBalance, IntegrityError, cancel_order, credit, debit, deliver_voucher, get_db, q, tx
 from helpers import BD_PHONE_RE, TRX_RE, clean_digits, clean_trx, to_int
 
 
@@ -214,6 +213,6 @@ def place_order(product, package_id, package_name, price, back, flash_sale_id=No
         flash("আপনার ওয়ালেটে যথেষ্ট ব্যালেন্স নেই। আগে Add Money করুন।", "error")
     except CheckoutError as e:
         flash(str(e), "error")
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         flash("এই Transaction ID আগেই ব্যবহার করা হয়েছে।", "error")
     return redirect(back)

@@ -1,4 +1,4 @@
--- TopUp store database schema (SQLite)
+-- TopUp store database schema (SQLite; pg.py translates it for Postgres)
 -- All money values are whole Bangladeshi Taka (INTEGER).
 
 CREATE TABLE IF NOT EXISTS users (
@@ -114,20 +114,6 @@ CREATE TABLE IF NOT EXISTS spins (
 CREATE INDEX IF NOT EXISTS idx_spins_user ON spins(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_spins_time ON spins(created_at);
 
--- Gift voucher codes in stock. available -> reserved (payment pending) -> delivered.
-CREATE TABLE IF NOT EXISTS voucher_codes (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    package_id      INTEGER NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
-    code            TEXT    NOT NULL,
-    status          TEXT    NOT NULL DEFAULT 'available',
-    order_id        INTEGER REFERENCES orders(id) ON DELETE SET NULL,
-    created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
-    delivered_at    TEXT,
-    UNIQUE (package_id, code)
-);
-CREATE INDEX IF NOT EXISTS idx_vc_stock ON voucher_codes(package_id, status, id);
-CREATE INDEX IF NOT EXISTS idx_vc_order ON voucher_codes(order_id);
-
 -- Manual "Send Money" numbers (bKash / Nagad / Rocket ...)
 CREATE TABLE IF NOT EXISTS payment_methods (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -167,6 +153,20 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS idx_orders_user   ON orders(user_id, id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status, id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_orders_trx ON orders(trx_id COLLATE NOCASE) WHERE trx_id IS NOT NULL;
+
+-- Gift voucher codes in stock. available -> reserved (payment pending) -> delivered.
+CREATE TABLE IF NOT EXISTS voucher_codes (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    package_id      INTEGER NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
+    code            TEXT    NOT NULL,
+    status          TEXT    NOT NULL DEFAULT 'available',
+    order_id        INTEGER REFERENCES orders(id) ON DELETE SET NULL,
+    created_at      TEXT    NOT NULL DEFAULT (datetime('now')),
+    delivered_at    TEXT,
+    UNIQUE (package_id, code)
+);
+CREATE INDEX IF NOT EXISTS idx_vc_stock ON voucher_codes(package_id, status, id);
+CREATE INDEX IF NOT EXISTS idx_vc_order ON voucher_codes(order_id);
 
 -- Manual add-money requests that an admin approves
 CREATE TABLE IF NOT EXISTS wallet_requests (
@@ -229,4 +229,13 @@ CREATE TABLE IF NOT EXISTS pages (
     title       TEXT NOT NULL,
     content     TEXT NOT NULL DEFAULT '',
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Uploaded images (logo, banners, product pictures), kept in the database so they
+-- survive on hosts with no permanent disk (Vercel). Served at /media/<name>.
+CREATE TABLE IF NOT EXISTS uploads (
+    name        TEXT PRIMARY KEY,
+    mime        TEXT NOT NULL,
+    data        BLOB NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );

@@ -87,42 +87,39 @@ def _looks_like_image(head):
     )
 
 
+IMAGE_MIME = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp", "gif": "image/gif"}
+
+
 def save_upload(file_storage, prefix="img"):
-    """Save an uploaded image and return its stored filename, or None if no file was sent.
+    """Store an uploaded image in the database and return its name, or None if no file was sent.
     Raises ValueError for anything that is not a real PNG/JPG/WEBP/GIF."""
+    from db import get_db
     if not file_storage or not file_storage.filename:
         return None
     name = file_storage.filename
     ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
     if ext not in ALLOWED_IMAGE_EXT:
         raise ValueError("শুধু PNG, JPG, WEBP বা GIF ছবি আপলোড করা যাবে।")
-    head = file_storage.stream.read(16)
-    file_storage.stream.seek(0)
-    if not _looks_like_image(head):
+    data = file_storage.stream.read()
+    if not _looks_like_image(data[:16]):
         raise ValueError("ফাইলটি সঠিক ছবি নয়।")
     ext = "jpg" if ext == "jpeg" else ext
-    stored = "%s_%s.%s" % (prefix, uuid.uuid4().hex[:16], ext)
-    folder = current_app.config["UPLOAD_FOLDER"]
-    os.makedirs(folder, exist_ok=True)
-    file_storage.save(os.path.join(folder, stored))
+    stored = "%s_%s.%s" % (re.sub(r"[^a-z_]", "", prefix.lower()) or "img", uuid.uuid4().hex[:16], ext)
+    get_db().execute("INSERT INTO uploads (name, mime, data) VALUES (?, ?, ?)", (stored, IMAGE_MIME[ext], data))
     return stored
 
 
 def delete_upload(filename):
+    from db import get_db
     if not filename or "/" in filename or "\\" in filename or filename.startswith("."):
         return
-    path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-    if os.path.isfile(path):
-        try:
-            os.remove(path)
-        except OSError:
-            pass
+    get_db().execute("DELETE FROM uploads WHERE name = ?", (filename,))
 
 
 def upload_url(filename):
     if not filename:
         return ""
-    return url_for("static", filename="uploads/" + filename)
+    return url_for("media", name=filename)
 
 
 # --------------------------------------------------------------------------- validation

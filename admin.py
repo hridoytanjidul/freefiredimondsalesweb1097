@@ -1,11 +1,10 @@
 """Admin panel (/admin). Only users with is_admin = 1 can open it."""
-import sqlite3
 from datetime import datetime, timedelta
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 import coupons as coupon_lib
-from db import (InsufficientBalance, cancel_order, credit, debit, deliver_voucher, expire_unpaid_gateway_orders, q,
+from db import (InsufficientBalance, IntegrityError, cancel_order, credit, debit, deliver_voucher, expire_unpaid_gateway_orders, q,
                 save_settings, tx)
 from helpers import (HEX_COLOR_RE, admin_required, bd_input_to_utc, delete_upload, safe_link, safe_next,
                      save_upload, slugify, to_int, utc_to_bd_input)
@@ -389,7 +388,7 @@ def category_update(cid):
             with tx() as db:
                 db.execute("DELETE FROM categories WHERE id = ?", (cid,))
             flash("ক্যাটাগরি ডিলিট হয়েছে।", "success")
-        except sqlite3.IntegrityError:
+        except IntegrityError:
             flash("এই ক্যাটাগরিতে প্রোডাক্ট আছে — আগে প্রোডাক্টগুলো সরান।", "error")
     else:
         name = (request.form.get("name") or "").strip()[:60]
@@ -670,7 +669,7 @@ def vouchers():
              "SUM(CASE WHEN v.status = 'reserved' THEN 1 ELSE 0 END) AS reserved, "
              "SUM(CASE WHEN v.status = 'delivered' THEN 1 ELSE 0 END) AS delivered "
              "FROM packages k JOIN products p ON p.id = k.product_id LEFT JOIN voucher_codes v ON v.package_id = k.id "
-             "WHERE p.kind = 'voucher' GROUP BY k.id ORDER BY p.sort_order, p.id, k.sort_order, k.id")
+             "WHERE p.kind = 'voucher' GROUP BY k.id, p.id ORDER BY p.sort_order, p.id, k.sort_order, k.id")
     return render_template("admin/vouchers.html", rows=rows, nav="vouchers")
 
 
@@ -694,7 +693,7 @@ def package_codes(kid):
                 with tx() as db:
                     added = 0
                     for c in codes:
-                        cur = db.execute("INSERT OR IGNORE INTO voucher_codes (package_id, code) VALUES (?, ?)", (kid, c))
+                        cur = db.execute("INSERT INTO voucher_codes (package_id, code) VALUES (?, ?) ON CONFLICT DO NOTHING", (kid, c))
                         added += cur.rowcount
                 skipped = len(lines) - added   # repeats inside the paste + codes already in stock
                 flash("%d টি কোড যোগ হয়েছে।%s" % (added, " %d টি ডুপ্লিকেট কোড বাদ দেওয়া হয়েছে।" % skipped if skipped else ""),

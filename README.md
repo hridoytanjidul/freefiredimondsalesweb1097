@@ -2,13 +2,13 @@
 
 A complete Bangladeshi game top-up website: customers buy Free Fire diamonds and memberships with their wallet balance or bKash / Nagad / Rocket, and you deliver and manage everything from an admin panel.
 
-Built with Python (Flask) and SQLite, with no Node.js and no build step.
+Built with Python (Flask), with no Node.js and no build step. On your computer it stores everything in a SQLite file; on Vercel it uses a Postgres database (Neon).
 
 ## Run it on your computer
 
 ```bash
 cd FREEFIRE
-python3 -m pip install -r requirements.txt     # Flask, requests, gunicorn
+python3 -m pip install -r requirements.txt     # Flask, requests, psycopg, gunicorn
 python3 app.py                                 # open http://127.0.0.1:8000
 ```
 
@@ -33,7 +33,7 @@ python3 manage.py make-admin someone@example.com     # give an existing user adm
 
 1. **Settings**: set your site name, logo, theme colour, Telegram support and group links, notice text, and footer text.
 2. **Payment Numbers**: replace the `01XXXXXXXXX` placeholders with your real bKash, Nagad and Rocket numbers.
-3. **Products**: upload a square image for each product and adjust the package prices.
+3. **Products**: upload a square image for each product and adjust the package prices. Images are stored in the database, up to 4 MB each.
 4. **Banners**: upload wide banners (about 1200×500) for the homepage slider.
 5. **Pages**: edit About, Terms, Privacy, Refund, Delete Account and Tutorial.
 
@@ -152,9 +152,37 @@ The server picks the prize with secure randomness, and the wheel only animates t
 
 In **Settings**, paste any player-info API URL with `{uid}` where the ID goes. A "check name" button then appears on the product page and on `/free-fire-id-checker`.
 
-## Put it online (production)
+## Put it online on Vercel
 
-Use any Linux VPS, or a Python host such as Render, Railway or PythonAnywhere.
+Vercel has no permanent disk, so on Vercel the site keeps its data in a **Postgres** database. Neon's free plan is enough. Uploaded images are stored in the database too, so nothing is lost between requests. `vercel.json` runs the site in Singapore (`sin1`), close to Bangladesh.
+
+1. **Create the database.**
+   - **From Vercel:** open your project → **Storage** → **Create Database** → **Neon**, pick **Singapore**, and connect it to the project. This adds `DATABASE_URL` for you.
+   - **From Neon:** create a project at [neon.tech](https://neon.tech) in **Singapore** and copy its connection string.
+2. **Add environment variables** under Vercel → Project → **Settings → Environment Variables**:
+   | Name | Value |
+   |---|---|
+   | `DATABASE_URL` | the Postgres connection string (skip this if step 1 already added it) |
+   | `SECRET_KEY` | a long random string. Never change it: changing it logs everyone out. |
+3. **Deploy.** Import this GitHub repository in Vercel (**Add New → Project**). Vercel detects the Flask app in `app.py`, and every push to `main` redeploys.
+4. **Let the site set itself up.** On the first visit it creates the tables and the sample products by itself.
+5. **Create your admin account** from your computer, using the same connection string:
+   ```bash
+   DATABASE_URL="postgresql://..." python3 manage.py create-admin you@example.com "Your Name"
+   ```
+6. **Update outside services** with your live address (`https://your-site.vercel.app` or your own domain):
+   - the UddoktaPay webhook (`/payment/webhook`)
+   - the Google login redirect URI (`/social-callback`)
+
+**Notes:**
+
+- Vercel's free **Hobby** plan is for non-commercial use only. A store that takes payments needs the **Pro** plan.
+- Neon keeps a restore history of your database. To keep your own copy, use `pg_dump "postgresql://..." > backup.sql`.
+- If `DATABASE_URL` or `SECRET_KEY` is missing on Vercel, the site stops with a message naming the variable, instead of silently losing data.
+
+## Put it online on your own server
+
+Use any Linux VPS, or a Python host such as Render, Railway or PythonAnywhere. Set `DATABASE_URL` to use Postgres, or leave it out to use the SQLite file.
 
 ```bash
 pip install -r requirements.txt
@@ -167,10 +195,7 @@ gunicorn -w 2 -b 0.0.0.0:8000 app:app
 
 Put nginx or Cloudflare in front for HTTPS.
 
-**Back up these regularly:**
-
-- `instance/topup.db`: all users, orders and balances
-- `static/uploads/`: your images
+**Back up `instance/topup.db` regularly.** It holds all users, orders and balances, and your uploaded images.
 
 If you don't set `SECRET_KEY`, one is generated and stored in `instance/secret_key`.
 
@@ -185,12 +210,14 @@ flashsale.py    flash sale pages and ordering (/flashsale)
 google_auth.py  Sign in with Google (/auth/google, /social-callback)
 admin.py        admin panel (/admin)
 db.py           database, wallet ledger, settings, first-run sample data
+pg.py           Postgres support: runs the same SQL on Neon/Postgres (used on Vercel)
 helpers.py      login guards, CSRF, image uploads, formatting, icons
 payments.py     UddoktaPay client
 manage.py       command-line admin tools
 schema.sql      database tables
+vercel.json     Vercel settings (Singapore region, static file caching)
 templates/      HTML pages (public, profile/, admin/)
-static/         css/style.css, js/app.js, img/, uploads/
+public/static/  css/style.css, js/app.js, img/ (served by Vercel's CDN)
 ```
 
 ## Security built in

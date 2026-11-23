@@ -15,7 +15,8 @@ sys.path.insert(0, BASE_DIR)
 from db import connect, init_db  # noqa: E402
 from helpers import hash_password  # noqa: E402
 
-DB_PATH = os.environ.get("DATABASE_PATH", os.path.join(BASE_DIR, "instance", "topup.db"))
+DB_PATH = (os.environ.get("DATABASE_URL") or os.environ.get("DATABASE_PATH")
+           or os.path.join(BASE_DIR, "instance", "topup.db"))
 
 
 def ask_password():

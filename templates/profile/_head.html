@@ -1,8 +1,8 @@
 <div class="card profile-head">
   {{ avatar(U.name, U.avatar, 'lg') }}
-  <div>
-    <h2>{{ U.name }}</h2>
-    <div class="small" style="opacity:.85">{{ U.email }}</div>
+  <div class="who">
+    <h2 title="{{ U.name }}">{{ U.name }}</h2>
+    <div class="small" style="opacity:.85" title="{{ U.email }}">{{ U.email }}</div>
   </div>
   <div class="bal">
     <small>Wallet Balance</small>

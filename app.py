@@ -26,7 +26,7 @@ from helpers import (BD_PHONE_RE, EMAIL_RE, avatar_html, avatar_hue, bdtime, cle
                      status_badge, to_int, upload_url)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ASSET_VERSION = "10"
+ASSET_VERSION = "11"
 
 
 def database_target(instance_path):

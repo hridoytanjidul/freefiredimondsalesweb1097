@@ -406,7 +406,11 @@ body.has-bottom-nav { padding-bottom: 68px; }
 .profile-head { display: flex; align-items: center; gap: 14px; margin-top: 20px; padding: 18px; color: #fff; border: 0; background: radial-gradient(circle at 90% 0%, rgba(255,255,255,.22), transparent 40%), linear-gradient(120deg, var(--primary-600), var(--primary)); }
 .profile-head h2 { color: #fff; margin: 0; font-size: 19px; }
 .profile-head .avatar { background: rgba(255,255,255,.22); }
-.profile-head .bal { margin-left: auto; text-align: right; }
+.profile-head .avatar { flex-shrink: 0; }
+/* long names/emails shorten with "…" instead of pushing the balance off small phone screens */
+.profile-head .who { flex: 1; min-width: 0; }
+.profile-head .who h2, .profile-head .who .small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-head .bal { margin-left: auto; text-align: right; flex-shrink: 0; }
 .profile-head .bal small { display: block; opacity: .8; font-size: 12px; }
 .profile-head .bal b { font-size: 24px; }
 .tabs { display: flex; gap: 6px; overflow-x: auto; margin: 14px 0; padding-bottom: 2px; scrollbar-width: none; }
@@ -506,8 +510,8 @@ body.has-bottom-nav { padding-bottom: 68px; }
    Admin panel
    ========================================================================== */
 .admin-body { background: #f4f3f8; }
-.admin-shell { display: grid; grid-template-columns: 1fr; min-height: 100vh; }
-.admin-side { background: #1c1830; color: #cfcbe0; padding: 16px 12px; }
+.admin-shell { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; min-height: 100vh; }   /* minmax(0,…): the menu scrolls instead of widening the page on phones */
+.admin-side { background: #1c1830; color: #cfcbe0; padding: 16px 12px; min-width: 0; }
 .admin-side .logo-text { color: #fff; }
 .admin-side nav { display: flex; gap: 4px; overflow-x: auto; margin-top: 14px; }
 .admin-side nav a { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 9px; color: #cfcbe0; font-weight: 500; font-size: 14px; white-space: nowrap; }
@@ -555,10 +559,10 @@ table.table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .alert-box { padding: 12px 14px; border-radius: 12px; background: var(--warn-bg); color: #9a3412; border: 1px solid #fed7aa; margin-bottom: 14px; font-size: 14px; }
 .img-preview { width: 100%; max-width: 220px; border-radius: 10px; border: 1px solid var(--border); }
 .banner-thumb { width: 180px; aspect-ratio: 2.4/1; object-fit: cover; border-radius: 8px; }
-fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin: 0 0 14px; }
+fieldset { border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin: 0 0 14px; min-width: 0; }
 legend { font-weight: 700; color: var(--heading); padding: 0 6px; }
 @media (min-width: 900px) {
-  .admin-shell { grid-template-columns: 240px 1fr; }
+  .admin-shell { grid-template-columns: 240px minmax(0, 1fr); }
   .admin-side { position: sticky; top: 0; height: 100vh; padding: 20px 14px; }
   .admin-side nav { flex-direction: column; overflow: visible; margin-top: 22px; }
   .admin-main { padding: 26px 30px; }

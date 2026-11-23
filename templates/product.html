@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import product_image, payment_options, coupon_box %}
+{% set is_voucher = p.kind == 'voucher' %}
+{% block title %}{{ p.name }} - {{ S.site_name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  <div class="card product-hero">
+    <div class="thumb">{{ product_image(p) }}</div>
+    <div>
+      <h1>{{ p.name }}</h1>
+      {% if p.delivery_note %}<span class="chip">{{ p.delivery_note }}</span>{% endif %}
+      {% if is_voucher %}<span class="chip">{{ icon('gift') }} Gift Voucher</span>{% endif %}
+    </div>
+  </div>
+
+  <form id="order-form" method="post" action="{{ url_for('place_order', pid=p.id) }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="order-layout">
+
+      <section class="card">
+        <div class="card-head"><span class="step">1</span><h3>Select {{ 'Voucher' if is_voucher else 'Recharge' }}</h3></div>
+        <div class="card-body">
+          {% if pkgs %}
+          <div class="pkg-grid">
+            {% for k in pkgs %}
+            {% set left = stock.get(k.id, 0) if is_voucher else None %}
+            {% set available = k.in_stock and (not is_voucher or left > 0) %}
+            <label class="pkg{% if not available %} oos{% endif %}">
+              <input type="radio" name="package_id" value="{{ k.id }}" data-price="{{ k.price }}" {% if not available %}disabled{% endif %}>
+              <b>{{ k.name }}</b>
+              <span>{% if available %}BDT {{ k.price }}{% else %}Stock Out{% endif %}</span>
+              {% if is_voucher and available %}<small class="stock-left">{{ left }} in stock</small>{% endif %}
+            </label>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="empty">এই প্রোডাক্টে এখনো কোনো প্যাকেজ নেই।</div>
+          {% endif %}
+          <a class="howto" href="{{ page_url('tutorial') }}">{{ icon('external') }} কিভাবে অর্ডার করবেন? {{ icon('arrow-right') }}</a>
+        </div>
+      </section>
+
+      <div class="order-side">
+        {% if is_voucher %}
+        <section class="card">
+          <div class="card-head"><span class="step">2</span><h3>Delivery</h3></div>
+          <div class="card-body delivery-info">
+            <p>{{ icon('zap') }}<span>পেমেন্টের পর কোডটি সাথে সাথে আপনার <a href="{{ url_for('my_vouchers') }}">প্রোফাইলের Gift Vouchers</a>-এ দেখাবে।</span></p>
+            {% if p.redeem_link %}<p>{{ icon('external') }}<span>রিডিম করবেন এখানে: <a href="{{ p.redeem_link }}" target="_blank" rel="noopener">{{ p.redeem_link|replace('https://', '')|truncate(40) }}</a></span></p>{% endif %}
+          </div>
+        </section>
+        {% else %}
+        <section class="card">
+          <div class="card-head"><span class="step">2</span><h3>Account Info</h3></div>
+          <div class="card-body">
+            <div class="field" style="margin-bottom:{{ '10px' if id_checker else '0' }}">
+              <label class="bn" for="player_id">{{ p.input_label }}</label>
+              <input class="input" id="player_id" name="player_id" placeholder="{{ p.input_label }}" required
+                     {% if p.numeric_id %}inputmode="numeric" pattern="[0-9 ]*"{% endif %} autocomplete="off" maxlength="120">
+            </div>
+            {% if id_checker and p.numeric_id %}
+            <button type="button" class="btn btn-primary btn-block bn" data-check-id="#player_id" data-result="#id-result">আপনার গেম আইডির নাম চেক করুন</button>
+            <div id="id-result" class="id-result"></div>
+            {% endif %}
+          </div>
+        </section>
+        {% endif %}
+
+        <section class="card">
+          <div class="card-head"><span class="step">3</span><h3>Select one option</h3></div>
+          <div class="card-body">
+            {{ coupon_box(coupons, U) }}
+            {{ payment_options(methods, gateway, allow_wallet=True) }}
+
+            <div class="need">{{ icon('info') }} প্রোডাক্ট কিনতে আপনার প্রয়োজন <b id="need-amount">0</b> টাকা।
+              <span id="discount-line" class="discount-line hide">(কুপন ছাড় −৳<b id="discount-amount">0</b>)</span></div>
+            {% if U %}
+              <div id="wallet-warn" class="hint" style="margin-bottom:10px">আপনার ওয়ালেট ব্যালেন্স: <b>{{ U.balance|money }}</b> · <a href="{{ url_for('add_wallet') }}">Add Money</a></div>
+              <button type="submit" class="btn btn-primary btn-block btn-lg">Buy Now</button>
+            {% else %}
+              <div class="warn-line">{{ icon('info') }} Please Login To Purchase</div>
+              <a class="btn btn-primary btn-block btn-lg" href="{{ url_for('login', next=request.path) }}">Login</a>
+            {% endif %}
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </form>
+
+  {% if p.description %}
+  <section class="card rules">
+    <div class="card-head">{{ icon('file') }}<h3>Rules &amp; Conditions</h3></div>
+    <div class="card-body">{{ p.description|safe }}</div>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}

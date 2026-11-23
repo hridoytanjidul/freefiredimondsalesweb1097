@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import countdown %}
+{% block title %}Spin &amp; Win - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <section class="spin-stage">
+    <div class="spin-intro">
+      <span class="eyebrow">Daily Free Spin</span>
+      <h1>Spin &amp; <span>Win</span></h1>
+      <p class="bn">প্রতি {{ hours }} ঘণ্টায় একবার ফ্রি স্পিন! জিতে নিন ওয়ালেট ব্যালেন্স অথবা ডিসকাউন্ট কুপন।</p>
+    </div>
+
+    <div class="spin-layout">
+      <div class="wheel-wrap">
+        <div class="wheel-pointer" aria-hidden="true"></div>
+        <div class="wheel-rotor" id="wheel-rotor">
+          <svg class="wheel-svg" viewBox="0 0 400 400" role="img" aria-label="Prize wheel">
+            <circle cx="200" cy="200" r="199" fill="#1c1830"/>
+            {% for s in wheel.segments %}
+              {% if s.d %}
+              <path d="{{ s.d }}" fill="{{ s.color }}" stroke="rgba(255,255,255,.9)" stroke-width="2" data-prize-id="{{ s.id }}" data-index="{{ s.index }}"/>
+              {% else %}
+              <circle cx="200" cy="200" r="184" fill="{{ s.color }}" data-prize-id="{{ s.id }}" data-index="0"/>
+              {% endif %}
+            {% endfor %}
+            {% for s in wheel.segments %}
+              <g transform="rotate({{ '%.2f' % s.mid }} 200 200)"><text x="200" y="{{ '%.1f' % wheel.label_y }}" class="wheel-label">{{ s.label }}</text></g>
+            {% endfor %}
+            {% for x, y, on in wheel.lights %}<circle cx="{{ x }}" cy="{{ y }}" r="4.5" class="wheel-light{{ ' alt' if on }}"/>{% endfor %}
+          </svg>
+        </div>
+        <button class="wheel-hub" id="spin-btn" type="button" {% if st.state != 'ready' %}disabled{% endif %} aria-label="Spin the wheel">SPIN</button>
+      </div>
+
+      <div class="card spin-panel">
+        <div class="card-body">
+          <div id="spin-status" class="spin-status spin-{{ st.state }}">
+            <b class="bn">{{ st.message }}</b>
+            {% if st.state == 'cooldown' %}<div style="margin-top:8px">{{ countdown(st.secs, '') }}</div>{% endif %}
+          </div>
+          {% if st.state == 'ready' %}
+            <button class="btn btn-primary btn-block btn-lg" id="spin-btn-2" type="button">🎡 Spin Now</button>
+          {% elif st.state == 'login' %}
+            <a class="btn btn-primary btn-block btn-lg" href="{{ url_for('login', next=request.path) }}">Login করে স্পিন করুন</a>
+          {% elif st.state == 'ineligible' %}
+            <a class="btn btn-primary btn-block btn-lg" href="{{ url_for('shop') }}">এখনই টপআপ করুন</a>
+          {% endif %}
+
+          <h4 class="spin-sub">Prizes</h4>
+          <ul class="prize-list">
+            {% for p in prizes if p.weight > 0 %}
+            <li><i style="background: {{ p.color }}"></i><b>{{ p.label }}</b><span class="bn">{{ prize_text(p) }}</span></li>
+            {% endfor %}
+          </ul>
+          <p class="hint">কুপন পুরস্কার শুধু আপনার জন্য, একবার ব্যবহারযোগ্য — প্রোডাক্ট পেজের কুপন বক্সে নিজে থেকেই দেখাবে।</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid-2" style="margin-top:16px">
+    <section class="card">
+      <div class="card-head">{{ icon('award') }}<h3>Recent Winners</h3></div>
+      {% if winners %}
+      <ul class="list">
+        {% for w in winners %}
+        <li class="list-item">{{ avatar(w.name, w.avatar) }}<div class="main"><b>{{ w.name }}</b><span>{{ w.created_at|bdtime }}</span></div><div class="side"><span class="badge badge-ok">{{ w.label }}</span></div></li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="empty">{{ icon('award') }}<div>প্রথম বিজয়ী হোন আপনি!</div></div>{% endif %}
+    </section>
+    {% if U %}
+    <section class="card">
+      <div class="card-head">{{ icon('clock') }}<h3>My Spins</h3></div>
+      {% if mine %}
+      <ul class="list">
+        {% for m in mine %}
+        <li class="list-item"><div class="main"><b>{{ m.label }}</b><span>{{ m.created_at|bdtime }}</span>
+          {% if m.coupon_code %}<span>Coupon: <b class="mono">{{ m.coupon_code }}</b> <button type="button" class="copy-btn" data-copy="{{ m.coupon_code }}">{{ icon('copy') }}</button></span>{% endif %}</div>
+          <div class="side">{% if m.prize_type == 'wallet' %}<b class="amt-pos">+৳{{ m.amount }}</b>{% elif m.prize_type == 'coupon' %}<span class="badge badge-info">Coupon</span>{% else %}<span class="muted small">—</span>{% endif %}</div></li>
+        {% endfor %}
+      </ul>
+      {% else %}<div class="empty">{{ icon('clock') }}<div>এখনো স্পিন করেননি।</div></div>{% endif %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block popup %}
+<div class="modal" id="spin-result" role="dialog" aria-modal="true" aria-label="Spin result">
+  <div class="modal-box spin-result-box">
+    <button class="modal-close" type="button" data-spin-close aria-label="Close">{{ icon('x') }}</button>
+    <div class="modal-content center">
+      <div class="spin-emoji" id="spin-emoji">🎉</div>
+      <h2 id="spin-title">You won!</h2>
+      <p class="bn" id="spin-message"></p>
+      <div id="spin-code" class="code-box hide" style="justify-content:center"><code id="spin-code-text"></code><button type="button" class="btn btn-primary btn-sm" id="spin-copy" data-copy="">{{ icon('copy') }} Copy</button></div>
+      <button type="button" class="btn btn-primary" data-spin-close style="margin-top:14px">OK</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

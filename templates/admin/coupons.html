@@ -1,0 +1,40 @@
+{% extends 'admin/base.html' %}
+{% block title %}Coupons{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Coupons</h1><a class="btn btn-primary" href="{{ url_for('admin.coupon_new') }}">{{ icon('plus') }} New Coupon</a></div>
+<p class="muted small">Customers type a coupon code at checkout to get a discount. <b>Public</b> coupons are also shown as one-tap chips on the product page. A cancelled order gives its coupon use back. Coupons don't apply to flash sales.</p>
+<div class="filters">
+  <a href="{{ url_for('admin.coupon_list') }}" class="{{ 'active' if not personal }}">Shop coupons</a>
+  <a href="{{ url_for('admin.coupon_list', personal=1) }}" class="{{ 'active' if personal }}">Spin prize coupons ({{ personal_count }})</a>
+</div>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Code</th><th>Discount</th><th>Applies to</th><th>Used</th><th>Per user</th><th>Valid (BD time)</th><th>Status</th><th>Given away</th><th></th></tr></thead>
+    <tbody>
+    {% for c in rows %}
+      <tr>
+        <td class="mono"><b>{{ c.code }}</b>{% if c.is_public %} <span class="badge badge-info">Public</span>{% endif %}{% if c.user_id %} <a class="badge badge-warn" href="{{ url_for('admin.user_detail', uid=c.user_id) }}">Personal</a>{% endif %}{% if c.description %}<div class="small muted" style="font-family:var(--font)">{{ c.description }}</div>{% endif %}</td>
+        <td>{{ coupon_label(c) }}{% if c.min_order %}<div class="small muted">min ৳{{ c.min_order }}</div>{% endif %}</td>
+        <td>{{ c.product_name or 'All products' }}</td>
+        <td>{{ c.used }}{% if c.usage_limit %} / {{ c.usage_limit }}{% endif %}</td>
+        <td>{{ c.per_user_limit or '∞' }}</td>
+        <td class="small">{{ c.starts_at|bdtime if c.starts_at else 'now' }} → {{ c.ends_at|bdtime if c.ends_at else 'no end' }}</td>
+        <td>
+          {% if not c.is_active %}<span class="badge badge-bad">Off</span>
+          {% elif c.timing == 'upcoming' %}<span class="badge badge-info">Scheduled</span>
+          {% elif c.timing == 'expired' %}<span class="badge badge-bad">Expired</span>
+          {% elif c.usage_limit and c.used >= c.usage_limit %}<span class="badge badge-warn">Used up</span>
+          {% else %}<span class="badge badge-ok">Active</span>{% endif %}
+        </td>
+        <td>{{ (savings.get(c.id) or 0)|money }}</td>
+        <td><a class="btn btn-sm btn-primary" href="{{ url_for('admin.coupon_edit', cid=c.id) }}">{{ icon('edit') }} Edit</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{{ icon('tag') }}<div>এখনো কোনো কুপন নেই।</div></div>
+  {% endif %}
+</section>
+{% endblock %}

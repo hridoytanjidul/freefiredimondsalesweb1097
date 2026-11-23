@@ -1,0 +1,57 @@
+{% extends 'admin/base.html' %}
+{% from '_macros.html' import pager %}
+{% block title %}Add Money Requests{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Add Money Requests</h1></div>
+<div class="filters">
+  {% for s in ['pending', 'approved', 'rejected'] %}<a href="{{ url_for('admin.wallet_requests', status=s) }}" class="{{ 'active' if status == s }}">{{ s|capitalize }}</a>{% endfor %}
+</div>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>#</th><th>User</th><th>Method</th><th>Sender</th><th>TrxID</th><th>Amount</th><th>Time</th><th>{{ 'Action' if status == 'pending' else 'Status' }}</th></tr></thead>
+    <tbody>
+    {% for w in rows %}
+    <tr>
+      <td>{{ w.id }}</td>
+      <td><a href="{{ url_for('admin.user_detail', uid=w.user_id) }}">{{ w.user_name }}</a><div class="small muted">{{ w.user_email }}</div></td>
+      <td>{{ w.method }}</td>
+      <td class="mono">{{ w.sender_number }}</td>
+      <td class="mono"><b>{{ w.trx_id }}</b></td>
+      <td>{{ w.amount|money }}</td>
+      <td class="small">{{ w.created_at|bdtime }}</td>
+      <td>
+        {% if w.status == 'pending' %}
+        <form class="inline-form" method="post" action="{{ url_for('admin.wallet_update', wid=w.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input w-sm" name="amount" type="number" min="1" value="{{ w.amount }}" title="Amount to add">
+          <input class="input w-md" name="note" placeholder="Note (optional)">
+          <button class="btn btn-ok btn-sm" name="action" value="approve" data-confirm="Approve and add money?">Approve</button>
+          <button class="btn btn-bad btn-sm" name="action" value="reject" data-confirm="Reject this request?">Reject</button>
+        </form>
+        {% else %}
+        {{ status_badge(w.status) }}{% if w.admin_note %}<div class="small muted">{{ w.admin_note }}</div>{% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{{ icon('wallet') }}<div>কোনো রিকোয়েস্ট নেই।</div></div>
+  {% endif %}
+</section>
+{{ pager(page, has_next, 'admin.wallet_requests', status=status) }}
+
+{% if gw %}
+<section class="card" style="margin-top:16px">
+  <div class="card-head">{{ icon('zap') }}<h3>Recent automatic (gateway) payments</h3></div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>#</th><th>User</th><th>For</th><th>Amount</th><th>Method</th><th>TrxID</th><th>Time</th></tr></thead>
+    <tbody>{% for p in gw %}
+      <tr><td>{{ p.id }}</td><td>{{ p.user_name }}</td><td>{{ p.purpose }}{% if p.ref_id %} #{{ p.ref_id }}{% endif %}</td><td>{{ p.amount|money }}</td><td>{{ p.method }}</td><td class="mono">{{ p.trx_id }}</td><td class="small">{{ p.created_at|bdtime }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+{% endblock %}

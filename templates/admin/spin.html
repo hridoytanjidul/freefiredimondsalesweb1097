@@ -1,0 +1,96 @@
+{% extends 'admin/base.html' %}
+{% block title %}Spin Wheel{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Spin Wheel</h1>{% if S.spin_enabled == '1' %}<a class="btn btn-outline btn-sm" href="{{ url_for('spin.page') }}" target="_blank">{{ icon('external') }} View wheel</a>{% endif %}</div>
+
+<div class="kpis">
+  <div class="card kpi"><small>Spins today</small><b>{{ stats.today }}</b></div>
+  <div class="card kpi"><small>Wallet given today</small><b>{{ stats.today_paid|money }}</b>{% if S.spin_daily_budget|int %}<br><span class="small muted">budget {{ S.spin_daily_budget|int|money }}</span>{% endif %}</div>
+  <div class="card kpi"><small>Total spins · wallet given</small><b>{{ stats.total }}</b> <span class="muted">· {{ stats.total_paid|money }}</span></div>
+  <div class="card kpi"><small>Coupons won · used</small><b>{{ stats.coupons }}</b> <span class="muted">· {{ stats.coupons_used }}</span></div>
+</div>
+
+<section class="card" style="margin-bottom:16px">
+  <div class="card-head">{{ icon('settings') }}<h3>Settings</h3>
+    {% if S.spin_enabled == '1' %}<span class="badge badge-ok" style="margin-left:auto">ON</span>{% else %}<span class="badge badge-bad" style="margin-left:auto">OFF</span>{% endif %}</div>
+  <form class="card-body" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <div class="field full"><label class="check"><input type="checkbox" name="spin_enabled" value="1" {% if S.spin_enabled == '1' %}checked{% endif %}> Spin wheel is ON (shows on homepage and header)</label></div>
+      <div class="field"><label>One spin every … hours</label><input class="input" name="spin_cooldown_hours" type="number" min="1" max="720" value="{{ S.spin_cooldown_hours }}"></div>
+      <div class="field"><label>Completed orders needed before spinning (0 = anyone)</label><input class="input" name="spin_min_orders" type="number" min="0" value="{{ S.spin_min_orders }}">
+        <p class="hint">At least 1 stops people opening fake accounts just to collect free wallet money.</p></div>
+      <div class="field"><label>Daily wallet budget ৳ (0 = no limit)</label><input class="input" name="spin_daily_budget" type="number" min="0" value="{{ S.spin_daily_budget }}">
+        <p class="hint">Once today's wallet prizes reach this, the wheel only gives coupons or "Try Again" until midnight (BD time).</p></div>
+      <div class="field"><label>Average wallet cost per spin</label><div class="input" style="background:#faf9fd"><b>৳{{ '%.2f' % cost }}</b> <span class="muted small">(from the chances below)</span></div></div>
+    </div>
+    <button class="btn btn-primary" type="submit">Save Settings</button>
+  </form>
+</section>
+
+<section class="card" id="prizes">
+  <div class="card-head">{{ icon('award') }}<h3>Prizes (wheel segments, in order)</h3></div>
+  <div class="card-body" style="padding-bottom:4px">
+    <p class="hint" style="margin-top:0"><b>Weight</b> = relative chance. Example: weights 30, 10, 10 → 60%, 20%, 20%. Weight 0 shows the segment but it can never be won. <b>Coupon</b> prizes create a personal single-use code for the winner, valid for the days you set.</p>
+  </div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th colspan="2">Label · Type · Amount · Coupon type · Max ৳ · Valid days · Weight · Colour · Order · Active</th><th>Chance</th></tr></thead>
+    <tbody>
+    {% macro prize_fields(p) %}
+      <input class="input" name="label" value="{{ p.label or '' }}" maxlength="14" required placeholder="৳10" style="width:110px">
+      <select class="select" name="prize_type">
+        {% for t, n in [('wallet', 'Wallet ৳'), ('coupon', 'Coupon'), ('nothing', 'Try Again')] %}<option value="{{ t }}" {% if p.prize_type == t %}selected{% endif %}>{{ n }}</option>{% endfor %}
+      </select>
+      <input class="input w-sm" name="amount" type="number" min="0" value="{{ p.amount or 0 }}" title="Wallet taka, or coupon value">
+      <select class="select" name="coupon_type" title="Coupon type">
+        <option value="percent" {% if p.coupon_type != 'fixed' %}selected{% endif %}>%</option>
+        <option value="fixed" {% if p.coupon_type == 'fixed' %}selected{% endif %}>৳</option>
+      </select>
+      <input class="input w-sm" name="max_discount" type="number" min="0" value="{{ p.max_discount or 0 }}" title="Max discount ৳ for % coupons (0 = no cap)">
+      <input class="input w-sm" name="valid_days" type="number" min="1" max="365" value="{{ p.valid_days or 7 }}" title="Coupon valid days">
+      <input class="input w-sm" name="weight" type="number" min="0" value="{{ p.weight if p.weight is not none else 10 }}" title="Weight (chance)">
+      <input class="input" name="color" type="color" value="{{ p.color or '#7c3aed' }}" style="width:52px;height:38px;padding:3px">
+      <input class="input w-sm" name="sort_order" type="number" value="{{ p.sort_order or 0 }}" title="Order on the wheel" style="width:64px">
+      <label class="check"><input type="checkbox" name="is_active" value="1" {% if p.is_active is not defined or p.is_active %}checked{% endif %}> On</label>
+    {% endmacro %}
+    {% for p in prizes %}
+      <tr>
+        <td colspan="2">
+          <form class="inline-form" method="post" action="{{ url_for('admin.spin_prize_update', sid=p.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ prize_fields(p) }}
+            <button class="btn btn-sm btn-primary" type="submit">Save</button>
+            <button class="btn btn-sm btn-ghost" name="delete" value="1" formnovalidate data-confirm="Delete prize {{ p.label }}?">{{ icon('trash') }}</button>
+          </form>
+        </td>
+        <td><b>{{ '%.1f' % chance[p.id] }}%</b></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="3" class="muted">কোনো পুরস্কার নেই — নিচে যোগ করুন।</td></tr>
+    {% endfor %}
+      <tr style="background:var(--primary-50)">
+        <td colspan="3">
+          <form class="inline-form" method="post" action="{{ url_for('admin.spin_prize_add') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {{ prize_fields({'prize_type': 'wallet', 'sort_order': prizes|length, 'weight': 10, 'valid_days': 7}) }}
+            <button class="btn btn-sm btn-ok" type="submit">{{ icon('plus') }} Add Prize</button>
+          </form>
+        </td>
+      </tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card" style="margin-top:16px">
+  <div class="card-head">{{ icon('clock') }}<h3>Recent spins</h3></div>
+  {% if recent %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Time</th><th>Customer</th><th>Prize</th><th>Result</th></tr></thead>
+    <tbody>{% for s in recent %}
+      <tr><td class="small">{{ s.created_at|bdtime }}</td><td><a href="{{ url_for('admin.user_detail', uid=s.user_id) }}">{{ s.user_name }}</a></td><td>{{ s.label }}</td>
+        <td>{% if s.prize_type == 'wallet' %}<span class="amt-pos">+৳{{ s.amount }}</span>{% elif s.prize_type == 'coupon' %}<span class="mono">{{ s.coupon_code }}</span>{% else %}<span class="muted">nothing</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="empty">{{ icon('clock') }}<div>এখনো কেউ স্পিন করেনি।</div></div>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Payment Successful' if ok else 'Payment Failed' }} - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <section class="card result-box {{ 'ok' if ok else 'bad' }}">
+    <div class="big">{{ icon('check' if ok else 'x') }}</div>
+    {% if ok %}
+      <h1>Payment Successful</h1>
+      {% if purpose == 'wallet' %}
+        <p class="bn">টাকা আপনার ওয়ালেটে যোগ হয়েছে।</p>
+        <a class="btn btn-primary" href="{{ url_for('shop') }}">এখন টপআপ করুন</a>
+      {% else %}
+        <p class="bn">পেমেন্ট সম্পন্ন হয়েছে। কিছুক্ষণের মধ্যে আপনার অর্ডার ডেলিভারি হবে।</p>
+        <a class="btn btn-primary" href="{{ url_for('my_orders') }}">My Orders দেখুন</a>
+      {% endif %}
+    {% else %}
+      <h1>Payment Failed</h1>
+      <p class="bn">পেমেন্ট সম্পন্ন হয়নি বা বাতিল করা হয়েছে। টাকা কেটে থাকলে Transaction ID সহ সাপোর্টে যোগাযোগ করুন।</p>
+      <a class="btn btn-outline" href="{{ url_for('home') }}">Home</a>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

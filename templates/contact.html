@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Contact Us - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <h1 class="page-title">Contact Us</h1>
+  <div style="display:grid;gap:12px">
+    <a class="helpline" href="{{ S.telegram_support }}" target="_blank" rel="noopener">
+      <span class="tg">{{ icon('send') }}</span>
+      <span><b>{{ S.helpline_title }}</b><span>{{ S.helpline_hours }}</span></span>
+    </a>
+    <a class="helpline" href="{{ S.telegram_group }}" target="_blank" rel="noopener">
+      <span class="tg" style="background:var(--primary)">{{ icon('users') }}</span>
+      <span><b>Telegram Group</b><span>অফার ও আপডেট পেতে জয়েন করুন</span></span>
+    </a>
+  </div>
+  <section class="card" style="margin-top:16px">
+    <div class="card-body prose">
+      <p>অর্ডার নিয়ে কোনো সমস্যা হলে মেসেজে লিখুন:</p>
+      <ul>
+        <li>অর্ডার নম্বর (যেমন #125)</li>
+        <li>পেমেন্টের Transaction ID</li>
+        <li>সমস্যার স্ক্রিনশট</li>
+      </ul>
+    </div>
+  </section>
+</div>
+{% endblock %}

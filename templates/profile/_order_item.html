@@ -1,0 +1,15 @@
+<li class="list-item">
+  <div class="main">
+    <b>{{ o.package_name }} <span class="muted small">· {{ o.product_name }}</span>{% if o.flash_sale_id %} <span class="badge badge-flash">Flash Sale</span>{% endif %}</b>
+    <span>#{{ o.id }}{% if not o.is_voucher %} · ID: <span class="mono">{{ o.player_id }}</span>{% endif %} · {{ o.created_at|bdtime }}</span>
+    {% if o.coupon_code %}<span>Coupon <b>{{ o.coupon_code }}</b> −{{ o.discount|money }}</span>{% endif %}
+    {% if o.is_voucher and o.voucher_code and o.status == 'completed' %}<a class="voucher-link" href="{{ url_for('my_vouchers') }}">{{ icon('gift') }} কোড দেখুন</a>{% endif %}
+    <span>Payment: {{ o.payment_method|capitalize }}{% if o.trx_id %} ({{ o.trx_id }}){% endif %}
+      {% if o.payment_status != 'paid' and o.status != 'cancelled' %} · {{ status_badge(o.payment_status) }}{% endif %}</span>
+    {% if o.admin_note and o.status == 'cancelled' %}<div class="note">কারণ: {{ o.admin_note }}</div>{% elif o.admin_note %}<div class="hint">{{ o.admin_note }}</div>{% endif %}
+  </div>
+  <div class="side">
+    <b>{{ o.price|money }}</b>
+    {{ status_badge(o.status) }}
+  </div>
+</li>

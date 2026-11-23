@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}My Account - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  {% include 'profile/_head.html' %}
+
+  <div class="stat-grid">
+    <div class="card stat">{{ icon('bag') }}<small>Total Orders</small><b>{{ stats.total or 0 }}</b></div>
+    <div class="card stat">{{ icon('check-circle') }}<small>Completed</small><b>{{ stats.done or 0 }}</b></div>
+    <div class="card stat">{{ icon('clock') }}<small>In Progress</small><b>{{ stats.waiting or 0 }}</b></div>
+    <div class="card stat">{{ icon('chart') }}<small>Total Spent</small><b>{{ stats.spent|money }}</b></div>
+  </div>
+
+  <div class="grid-2" style="margin-top:14px">
+    <section class="card">
+      <div class="card-head">{{ icon('bag') }}<h3>Recent Orders</h3><a class="small" style="margin-left:auto" href="{{ url_for('my_orders') }}">View all</a></div>
+      {% if recent %}
+      <ul class="list">{% for o in recent %}{% include 'profile/_order_item.html' %}{% endfor %}</ul>
+      {% else %}
+      <div class="empty">{{ icon('bag') }}<div>এখনো কোনো অর্ডার করেননি। <a href="{{ url_for('shop') }}">টপআপ করুন</a></div></div>
+      {% endif %}
+    </section>
+
+    <div style="display:grid;gap:14px">
+      <section class="card">
+        <div class="card-head">{{ icon('user') }}<h3>Profile Info</h3></div>
+        <form class="card-body" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="info">
+          <div class="field"><label for="name">Name</label><input class="input" id="name" name="name" value="{{ U.name }}" required maxlength="60"></div>
+          <div class="field"><label>Email</label><input class="input" value="{{ U.email }}" disabled></div>
+          <div class="field"><label for="phone">Mobile</label><input class="input" id="phone" name="phone" value="{{ U.phone or '' }}" inputmode="numeric" placeholder="01XXXXXXXXX"></div>
+          <button class="btn btn-primary" type="submit">Save</button>
+        </form>
+      </section>
+      <section class="card">
+        <div class="card-head">{{ icon('lock') }}<h3>{{ 'Change Password' if has_password else 'Set a Password' }}</h3></div>
+        <form class="card-body" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="password">
+          {% if has_password %}
+          <div class="field"><label for="current">Current Password</label><input class="input" id="current" name="current" type="password" required autocomplete="current-password"></div>
+          {% else %}
+          <p class="hint">আপনি Google দিয়ে লগইন করেছেন। চাইলে একটি পাসওয়ার্ড সেট করুন — তাহলে ইমেইল দিয়েও লগইন করতে পারবেন।</p>
+          {% endif %}
+          <div class="field"><label for="new">New Password</label><input class="input" id="new" name="new" type="password" required minlength="6" autocomplete="new-password"></div>
+          <div class="field"><label for="new2">Confirm New Password</label><input class="input" id="new2" name="new2" type="password" required minlength="6" autocomplete="new-password"></div>
+          <button class="btn btn-outline" type="submit">{{ 'Update Password' if has_password else 'Set Password' }}</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

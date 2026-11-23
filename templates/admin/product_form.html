@@ -1,0 +1,89 @@
+{% extends 'admin/base.html' %}
+{% from '_macros.html' import product_image %}
+{% block title %}{{ 'Edit ' ~ p.name if p.id else 'New Product' }}{% endblock %}
+{% block content %}
+<div class="admin-top">
+  <h1>{{ 'Edit: ' ~ p.name if p.id else 'New Product' }}</h1>
+  <a class="btn btn-outline btn-sm" href="{{ url_for('admin.products') }}">← Products</a>
+</div>
+
+<section class="card">
+  <form class="card-body" method="post" enctype="multipart/form-data" action="{{ url_for('admin.product_edit', pid=p.id) if p.id else url_for('admin.product_new') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <div class="field"><label for="name">Name</label><input class="input" id="name" name="name" value="{{ p.name or '' }}" required maxlength="80" placeholder="UID TopUp (BD)"></div>
+      <div class="field"><label for="category_id">Category</label>
+        <select class="select" id="category_id" name="category_id" required>
+          {% for c in cats %}<option value="{{ c.id }}" {% if p.category_id|string == c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label for="kind">Product type</label>
+        <select class="select" id="kind" name="kind">
+          <option value="topup" {% if p.kind != 'voucher' %}selected{% endif %}>Top-up (customer enters Player ID, you deliver)</option>
+          <option value="voucher" {% if p.kind == 'voucher' %}selected{% endif %}>Gift Voucher (code delivered automatically)</option>
+        </select></div>
+      <div class="field"><label for="redeem_link">Redeem link (vouchers, optional)</label><input class="input" id="redeem_link" name="redeem_link" value="{{ p.redeem_link or '' }}" placeholder="https://..."></div>
+      <div class="field"><label for="tag_line">Tag (small label on card)</label><input class="input" id="tag_line" name="tag_line" value="{{ p.tag_line or '' }}" maxlength="30" placeholder="Hot / Best Price"></div>
+      <div class="field"><label for="delivery_note">Delivery note</label><input class="input" id="delivery_note" name="delivery_note" value="{{ p.delivery_note or '' }}" maxlength="60" placeholder="⚡ ২ মিনিটে টপআপ"></div>
+      <div class="field"><label for="input_label">Player ID field label</label><input class="input" id="input_label" name="input_label" value="{{ p.input_label or '' }}" maxlength="80" placeholder="এখানে গেমের Player ID দিন"></div>
+      <div class="field"><label for="sort_order">Sort order</label><input class="input" id="sort_order" name="sort_order" type="number" value="{{ p.sort_order or 0 }}"></div>
+      <div class="field full"><label for="image">Image (square, PNG/JPG/WEBP, max 5MB)</label>
+        {% if p.id and p.image %}<div style="display:flex;gap:12px;align-items:center;margin-bottom:8px"><div class="thumb" style="width:80px;height:80px;border-radius:10px;overflow:hidden">{{ product_image(p) }}</div><label class="check"><input type="checkbox" name="remove_image" value="1"> Remove image</label></div>{% endif %}
+        <input class="input" id="image" name="image" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+      </div>
+      <div class="field full"><label for="description">Rules &amp; Conditions (HTML allowed)</label><textarea class="textarea" id="description" name="description" rows="8">{{ p.description or '' }}</textarea></div>
+      <div class="field full">
+        <label class="check"><input type="checkbox" name="numeric_id" value="1" {% if p.numeric_id|string == '1' %}checked{% endif %}> Player ID must be numbers only (Free Fire UID)</label><br>
+        <label class="check"><input type="checkbox" name="is_active" value="1" {% if p.is_active|string == '1' %}checked{% endif %}> Show on website</label>
+      </div>
+    </div>
+    <button class="btn btn-primary" type="submit">{{ 'Save Product' if p.id else 'Create Product' }}</button>
+  </form>
+</section>
+
+{% if p.id %}
+<section class="card" id="packages" style="margin-top:16px">
+  <div class="card-head">{{ icon('gem') }}<h3>Packages</h3></div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th colspan="5">Name · Price (৳) · Sort order · Stock</th></tr></thead>
+    <tbody>
+    {% for k in pkgs %}
+      <tr>
+        <td colspan="5">
+          <form class="inline-form" method="post" action="{{ url_for('admin.package_update', kid=k.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input w-md" name="name" value="{{ k.name }}" required maxlength="60">
+            <input class="input w-sm" name="price" type="number" min="1" value="{{ k.price }}" required>
+            <input class="input w-sm" name="sort_order" type="number" value="{{ k.sort_order }}" title="Sort order">
+            <label class="check"><input type="checkbox" name="in_stock" value="1" {% if k.in_stock %}checked{% endif %}> In stock</label>
+            <button class="btn btn-sm btn-primary" type="submit">Save</button>
+            <button class="btn btn-sm btn-ghost" name="delete" value="1" data-confirm="Delete package {{ k.name }}?">{{ icon('trash') }}</button>
+            {% if p.kind == 'voucher' %}<a class="btn btn-sm {{ 'btn-bad' if not k.codes_left else 'btn-outline' }}" href="{{ url_for('admin.package_codes', kid=k.id) }}">{{ icon('gift') }} Codes: {{ k.codes_left }} left · {{ k.codes_sold }} sold</a>{% endif %}
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="muted">এখনো কোনো প্যাকেজ নেই — নিচে যোগ করুন।</td></tr>
+    {% endfor %}
+      <tr style="background:var(--primary-50)">
+        <td colspan="5">
+          <form class="inline-form" method="post" action="{{ url_for('admin.package_add', pid=p.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input class="input w-md" name="name" placeholder="e.g. 115 Diamond" required maxlength="60">
+            <input class="input w-sm" name="price" type="number" min="1" placeholder="Price" required>
+            <input class="input w-sm" name="sort_order" type="number" value="{{ pkgs|length }}" title="Sort order">
+            <label class="check"><input type="checkbox" name="in_stock" value="1" checked> In stock</label>
+            <button class="btn btn-sm btn-ok" type="submit">{{ icon('plus') }} Add Package</button>
+          </form>
+        </td>
+      </tr>
+    </tbody>
+  </table></div>
+</section>
+
+<form method="post" action="{{ url_for('admin.product_delete', pid=p.id) }}" style="margin-top:16px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn btn-bad btn-sm" type="submit" data-confirm="Delete {{ p.name }} and all its packages? Old orders will stay.">{{ icon('trash') }} Delete product</button>
+</form>
+{% endif %}
+{% endblock %}

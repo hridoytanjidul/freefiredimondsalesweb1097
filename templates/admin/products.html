@@ -1,0 +1,31 @@
+{% extends 'admin/base.html' %}
+{% from '_macros.html' import product_image %}
+{% block title %}Products{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Products</h1><a class="btn btn-primary" href="{{ url_for('admin.product_new') }}">{{ icon('plus') }} New Product</a></div>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th></th><th>Name</th><th>Category</th><th>Packages</th><th>Order</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for p in rows %}
+      <tr>
+        <td><div class="thumb">{{ product_image(p) }}</div></td>
+        <td><b>{{ p.name }}</b>{% if p.tag_line %} <span class="badge badge-info">{{ p.tag_line }}</span>{% endif %}</td>
+        <td>{{ p.category or '—' }}</td>
+        <td>{{ p.pkg_count }}</td>
+        <td>{{ p.sort_order }}</td>
+        <td>{% if p.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-bad">Hidden</span>{% endif %}</td>
+        <td class="actions">
+          <a class="btn btn-sm btn-primary" href="{{ url_for('admin.product_edit', pid=p.id) }}">{{ icon('edit') }} Edit</a>
+          <a class="btn btn-sm btn-ghost" href="{{ url_for('product', pid=p.id, slug=p.slug) }}" target="_blank">{{ icon('external') }}</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{{ icon('box') }}<div>কোনো প্রোডাক্ট নেই।</div></div>
+  {% endif %}
+</section>
+{% endblock %}

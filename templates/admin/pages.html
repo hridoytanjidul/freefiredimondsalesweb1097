@@ -1,0 +1,14 @@
+{% extends 'admin/base.html' %}
+{% block title %}Pages{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Pages</h1></div>
+<section class="card">
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Page</th><th>URL</th><th>Updated</th><th></th></tr></thead>
+    <tbody>{% for p in rows %}
+      <tr><td><b>{{ p.title }}</b></td><td class="mono small"><a href="{{ page_url(p.slug) }}" target="_blank">{{ page_url(p.slug) }}</a></td><td class="small">{{ p.updated_at|bdtime }}</td>
+        <td><a class="btn btn-sm btn-primary" href="{{ url_for('admin.page_edit', slug=p.slug) }}">{{ icon('edit') }} Edit</a></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

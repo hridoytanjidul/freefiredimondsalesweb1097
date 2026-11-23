@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import product_card, section_title, flash_card, countdown %}
+{% block title %}{{ S.site_name }} - FF Diamond TopUp Website{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  {% if S.notice_enabled == '1' and S.notice_text %}
+  <div class="notice" role="note">
+    <span class="notice-label">NOTICE</span>
+    <div class="notice-track"><span class="notice-text"><span>{{ S.notice_text }}</span><span aria-hidden="true">{{ S.notice_text }}</span></span></div>
+    <button class="notice-close" type="button" aria-label="Close notice">{{ icon('x') }}</button>
+  </div>
+  {% endif %}
+
+  <section class="slider{% if not banners %} is-default{% endif %}" data-slider aria-label="Offers">
+    {% for b in banners %}
+      {% if b.link %}
+        <a class="slide{% if loop.first %} active{% endif %}" href="{{ b.link }}"><img src="{{ upload_url(b.image) }}" alt="Banner {{ loop.index }}"></a>
+      {% else %}
+        <div class="slide{% if loop.first %} active{% endif %}"><img src="{{ upload_url(b.image) }}" alt="Banner {{ loop.index }}"></div>
+      {% endif %}
+    {% else %}
+      <div class="slide slide-default active">
+        <div>
+          <span class="eyebrow">Free Fire Diamond TopUp</span>
+          <h2>{{ S.site_name }}</h2>
+          <p>সবচেয়ে কম দামে, কয়েক মিনিটে ডায়মন্ড টপআপ — বিকাশ, নগদ ও রকেটে পেমেন্ট।</p>
+          <a class="btn btn-light" href="{{ url_for('shop') }}">এখনই টপআপ করুন {{ icon('arrow-right') }}</a>
+        </div>
+        <div class="gem-art">{{ icon('gem') }}</div>
+      </div>
+    {% endfor %}
+  </section>
+  <div class="slider-dots"></div>
+
+  <div class="support-row">
+    <a class="support-btn" href="{{ S.telegram_support }}" target="_blank" rel="noopener">
+      <span class="circle">{{ icon('send') }}</span>
+      <span><small>Support</small><b>Telegram</b></span>
+    </a>
+    <a class="support-btn" href="{{ S.telegram_group }}" target="_blank" rel="noopener">
+      <span class="circle">{{ icon('users') }}</span>
+      <span><small>Group</small><b>Join Group</b></span>
+    </a>
+  </div>
+
+  {% if S.spin_enabled == '1' %}
+  <a class="spin-banner" href="{{ url_for('spin.page') }}">
+    <span class="wheel-ico" aria-hidden="true">🎡</span>
+    <span><b>Spin &amp; Win</b><span class="t">প্রতিদিন ফ্রি স্পিন — জিতে নিন ওয়ালেট ব্যালেন্স বা কুপন!</span></span>
+    <span class="btn btn-light btn-sm">Spin Now</span>
+  </a>
+  {% endif %}
+
+  {% if flash_sales %}
+  {% set live = flash_sales|selectattr('state', 'equalto', 'live')|list %}
+  <section class="flash-section">
+    <div class="flash-head">
+      <h2>{{ icon('zap') }} Flash Sale</h2>
+      {% if live %}{{ countdown(live[0].secs, 'Ends in') }}{% endif %}
+      <a href="{{ url_for('flash.index') }}">View all {{ icon('arrow-right') }}</a>
+    </div>
+    <div class="flash-body">
+      <div class="flash-grid">{% for f in flash_sales %}{{ flash_card(f) }}{% endfor %}</div>
+    </div>
+  </section>
+  {% endif %}
+
+  {% for cat, items in sections %}
+  <section class="section">
+    {{ section_title(cat.name) }}
+    <div class="product-grid">
+      {% for p in items %}{{ product_card(p) }}{% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <section class="section"><div class="card empty">{{ icon('box') }}<div>এখনো কোনো প্রোডাক্ট যোগ করা হয়নি।</div></div></section>
+  {% endfor %}
+
+  {% if S.show_recent_orders == '1' %}
+  <section class="card recent" aria-live="polite">
+    <div class="recent-head">
+      <span class="recent-icon">{{ icon('bag') }}</span>
+      <div>
+        <h3>Recent Orders</h3>
+        <span class="live">Live</span>
+      </div>
+      <button class="icon-btn" id="recent-refresh" type="button" aria-label="Refresh">{{ icon('refresh') }}</button>
+    </div>
+    <ul class="recent-list" id="recent-list">
+      {% for o in recent %}
+      <li>
+        {{ avatar(o.name, o.avatar) }}
+        <div class="who"><b>{{ o.name }}</b><span>{{ o.package_name }} - {{ o.price|money }}</span></div>
+        {{ status_badge(o.status) }}
+      </li>
+      {% else %}
+      <li class="recent-empty">এখনো কোনো অর্ডার নেই</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if S.app_link %}
+  <section class="app-dl">
+    <h3>Download Our Mobile App</h3>
+    <a class="play-badge" href="{{ S.app_link }}" target="_blank" rel="noopener">
+      {{ icon('play') }}
+      <span><small>GET IT ON</small><b>Google Play</b></span>
+    </a>
+  </section>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block popup %}
+{% if S.popup_enabled == '1' and (S.popup_text or S.popup_image) %}
+<div class="modal" id="popup" role="dialog" aria-modal="true" aria-label="Announcement">
+  <div class="modal-box{% if S.popup_image %} has-img{% endif %}">
+    <button class="modal-close" type="button" data-close aria-label="Close">{{ icon('x') }}</button>
+    {% if S.popup_image %}<img src="{{ upload_url(S.popup_image) }}" alt="">{% endif %}
+    <div class="modal-content">
+      {% if S.popup_text %}<p>{{ S.popup_text }}</p>{% endif %}
+      {% if S.popup_link %}<a class="btn btn-primary" href="{{ S.popup_link }}" target="_blank" rel="noopener">{{ S.popup_button or 'বিস্তারিত' }}</a>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

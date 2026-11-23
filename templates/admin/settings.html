@@ -1,0 +1,82 @@
+{% extends 'admin/base.html' %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Site Settings</h1></div>
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <fieldset><legend>Brand</legend>
+    <div class="form-grid">
+      <div class="field"><label>Site name</label><input class="input" name="site_name" value="{{ S.site_name }}" required maxlength="40"></div>
+      <div class="field"><label>Tagline</label><input class="input" name="site_tagline" value="{{ S.site_tagline }}" maxlength="80"></div>
+      <div class="field"><label>Theme colour</label><input class="input" name="theme_color" type="color" value="{{ S.theme_color }}" style="height:44px;padding:4px"></div>
+      <div class="field"><label>SEO description</label><input class="input" name="meta_description" value="{{ S.meta_description }}" maxlength="200"></div>
+      <div class="field"><label>Logo (wide PNG, transparent background)</label>
+        {% if S.logo %}<img class="img-preview" src="{{ upload_url(S.logo) }}" alt="" style="max-width:160px;margin-bottom:6px"><label class="check"><input type="checkbox" name="remove_logo" value="1"> Remove</label>{% endif %}
+        <input class="input" type="file" name="logo" accept="image/png,image/jpeg,image/webp"></div>
+      <div class="field"><label>Favicon (square PNG)</label>
+        {% if S.favicon %}<img class="img-preview" src="{{ upload_url(S.favicon) }}" alt="" style="max-width:48px;margin-bottom:6px"><label class="check"><input type="checkbox" name="remove_favicon" value="1"> Remove</label>{% endif %}
+        <input class="input" type="file" name="favicon" accept="image/png,image/jpeg,image/webp"></div>
+    </div>
+  </fieldset>
+
+  <fieldset><legend>Notice bar &amp; popup</legend>
+    <div class="form-grid">
+      <div class="field full"><label class="check"><input type="checkbox" name="notice_enabled" value="1" {% if S.notice_enabled == '1' %}checked{% endif %}> Show scrolling notice on homepage</label></div>
+      <div class="field full"><label>Notice text</label><input class="input" name="notice_text" value="{{ S.notice_text }}"></div>
+      <div class="field full"><label class="check"><input type="checkbox" name="popup_enabled" value="1" {% if S.popup_enabled == '1' %}checked{% endif %}> Show popup on homepage (once per visit)</label></div>
+      <div class="field"><label>Popup text</label><input class="input" name="popup_text" value="{{ S.popup_text }}"></div>
+      <div class="field"><label>Popup image</label>
+        {% if S.popup_image %}<img class="img-preview" src="{{ upload_url(S.popup_image) }}" alt="" style="max-width:120px;margin-bottom:6px"><label class="check"><input type="checkbox" name="remove_popup_image" value="1"> Remove</label>{% endif %}
+        <input class="input" type="file" name="popup_image" accept="image/png,image/jpeg,image/webp,image/gif"></div>
+      <div class="field"><label>Popup button link</label><input class="input" name="popup_link" value="{{ S.popup_link }}" placeholder="https://..."></div>
+      <div class="field"><label>Popup button text</label><input class="input" name="popup_button" value="{{ S.popup_button }}"></div>
+    </div>
+  </fieldset>
+
+  <fieldset><legend>Support &amp; footer</legend>
+    <div class="form-grid">
+      <div class="field"><label>Telegram support link</label><input class="input" name="telegram_support" value="{{ S.telegram_support }}" placeholder="https://t.me/yourname"></div>
+      <div class="field"><label>Telegram group link</label><input class="input" name="telegram_group" value="{{ S.telegram_group }}" placeholder="https://t.me/+invite"></div>
+      <div class="field"><label>Helpline title</label><input class="input" name="helpline_title" value="{{ S.helpline_title }}"></div>
+      <div class="field"><label>Helpline hours</label><input class="input" name="helpline_hours" value="{{ S.helpline_hours }}"></div>
+      <div class="field"><label>Android app link (shows "Get it on Google Play")</label><input class="input" name="app_link" value="{{ S.app_link }}" placeholder="https://play.google.com/store/apps/details?id=..."></div>
+      <div class="field"><label class="check" style="margin-top:30px"><input type="checkbox" name="show_recent_orders" value="1" {% if S.show_recent_orders == '1' %}checked{% endif %}> Show live "Recent Orders" on homepage</label></div>
+      <div class="field full"><label>Footer text (HTML allowed)</label><textarea class="textarea" name="footer_text" rows="4">{{ S.footer_text }}</textarea></div>
+    </div>
+  </fieldset>
+
+  <fieldset><legend>Wallet &amp; payments</legend>
+    <div class="form-grid">
+      <div class="field"><label>Minimum Add Money (৳)</label><input class="input" name="min_wallet_amount" type="number" min="1" value="{{ S.min_wallet_amount }}"></div>
+      <div class="field"><label>Maximum Add Money (৳)</label><input class="input" name="max_wallet_amount" type="number" min="1" value="{{ S.max_wallet_amount }}"></div>
+      <div class="field full"><p class="hint" style="margin:0">Optional automatic payments with <b>UddoktaPay</b>. Leave empty to use only manual Send Money + TrxID. For testing use base URL <span class="mono">https://sandbox.uddoktapay.com</span> and API key <span class="mono">982d381360a69d419689740d9f2e26ce36fb7a50</span>.</p></div>
+      <div class="field"><label>UddoktaPay base URL</label><input class="input" name="uddoktapay_base_url" value="{{ S.uddoktapay_base_url }}" placeholder="https://pay.yourdomain.com"></div>
+      <div class="field"><label>UddoktaPay API key {% if S.uddoktapay_api_key %}<span class="badge badge-ok">saved</span>{% endif %}</label>
+        <input class="input" name="uddoktapay_api_key" type="password" autocomplete="off" placeholder="{{ 'Leave empty to keep the saved key' if S.uddoktapay_api_key else 'Paste API key' }}">
+        {% if S.uddoktapay_api_key %}<label class="check"><input type="checkbox" name="clear_api_key" value="1"> Remove saved key</label>{% endif %}</div>
+    </div>
+  </fieldset>
+
+  <fieldset><legend>Google Login (optional)</legend>
+    <p class="hint" style="margin-top:0">Google Cloud Console → APIs &amp; Services → Credentials → <b>Create OAuth client ID</b> → type <b>Web application</b>. Under "Authorized redirect URIs" add exactly:<br>
+      <span class="mono" style="color:var(--heading);font-size:14px">{{ google_redirect }}</span> <button type="button" class="copy-btn" data-copy="{{ google_redirect }}">{{ icon('copy') }} Copy</button><br>
+      (Add your live domain's version too, e.g. https://yourdomain.com/social-callback.) Then paste the Client ID and Secret below.</p>
+    <div class="form-grid">
+      <div class="field"><label>Client ID {% if S.google_client_id and S.google_client_secret %}<span class="badge badge-ok">active</span>{% endif %}</label>
+        <input class="input mono" name="google_client_id" value="{{ S.google_client_id }}" placeholder="1234-abc.apps.googleusercontent.com"></div>
+      <div class="field"><label>Client Secret {% if S.google_client_secret %}<span class="badge badge-ok">saved</span>{% endif %}</label>
+        <input class="input" name="google_client_secret" type="password" autocomplete="off" placeholder="{{ 'Leave empty to keep the saved secret' if S.google_client_secret else 'GOCSPX-...' }}">
+        {% if S.google_client_secret %}<label class="check"><input type="checkbox" name="clear_google_secret" value="1"> Remove saved secret (turns Google login off)</label>{% endif %}</div>
+    </div>
+  </fieldset>
+
+  <fieldset><legend>Free Fire ID checker (optional)</legend>
+    <div class="field" style="margin:0"><label>Checker API URL — use <span class="mono">{uid}</span> where the player ID goes</label>
+      <input class="input" name="ff_id_checker_url" value="{{ S.ff_id_checker_url }}" placeholder="https://your-checker-api.example/info?uid={uid}">
+      <p class="hint">Any JSON API that returns the player's nickname works. Leave empty to hide the "check name" button.</p></div>
+  </fieldset>
+
+  <button class="btn btn-primary btn-lg" type="submit">Save Settings</button>
+</form>
+{% endblock %}

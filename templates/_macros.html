@@ -1,0 +1,163 @@
+{% macro product_image(p) -%}
+  {%- if p.image -%}
+    <img src="{{ upload_url(p.image) }}" alt="{{ p.name }}" loading="lazy">
+  {%- else -%}
+    <div class="ph" style="--h: {{ 250 + (p.id * 23) % 70 }}">{{ icon('gem') }}<span>{{ p.name }}</span></div>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro product_card(p) -%}
+  <a class="pcard" href="{{ product_url(p) }}">
+    <div class="pcard-img">
+      {{ product_image(p) }}
+      {% if p.tag_line %}<span class="ptag">{{ p.tag_line }}</span>{% endif %}
+    </div>
+    <div class="pcard-name">{{ p.name }}</div>
+  </a>
+{%- endmacro %}
+
+{% macro section_title(name) -%}
+  {%- set words = name.split(' ') -%}
+  <h2 class="section-title">
+    {%- if words|length > 1 -%}
+      {{ words[:-1]|join(' ') }}&nbsp;<em>{{ words[-1] }}</em>
+    {%- else -%}
+      {{ name }}
+    {%- endif -%}
+  </h2>
+{%- endmacro %}
+
+{% macro pager(page, has_next, endpoint) -%}
+  {% if page > 1 or has_next %}
+  <div class="pager">
+    {% if page > 1 %}<a class="btn btn-outline btn-sm" href="{{ url_for(endpoint, page=page-1, **kwargs) }}">← Previous</a>{% else %}<span></span>{% endif %}
+    {% if has_next %}<a class="btn btn-outline btn-sm" href="{{ url_for(endpoint, page=page+1, **kwargs) }}">Next →</a>{% endif %}
+  </div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro method_logo(m) -%}
+  <span class="mlogo" style="background: {{ m.color }}">{{ m.name }}</span>
+{%- endmacro %}
+
+{# Payment options block shared by the product page and the Add Money page.
+   allow_wallet: show "Wallet Pay" (not offered when topping up the wallet itself). #}
+{% macro payment_options(methods, gateway, allow_wallet=True) -%}
+  <div class="pay-options">
+    {% if allow_wallet %}
+    <label class="pay-opt">
+      <input type="radio" name="pay_option" value="wallet" checked>
+      <span class="art"><span class="wallet-art">{{ icon('wallet') }} ওয়ালেট</span></span>
+      <span class="cap">Wallet Pay</span>
+    </label>
+    {% endif %}
+    {% if gateway %}
+    <label class="pay-opt">
+      <input type="radio" name="pay_option" value="gateway" {% if not allow_wallet %}checked{% endif %}>
+      <span class="art">
+        {% for m in methods[:3] %}{{ method_logo(m) }}{% else %}<span class="mlogo" style="background:#e2136e">bKash</span><span class="mlogo" style="background:#f6921e">Nagad</span>{% endfor %}
+      </span>
+      <span class="cap">Instant Pay</span>
+    </label>
+    {% endif %}
+    {% if methods %}
+    <label class="pay-opt">
+      <input type="radio" name="pay_option" value="manual" {% if not allow_wallet and not gateway %}checked{% endif %}>
+      <span class="art">{% for m in methods[:3] %}{{ method_logo(m) }}{% endfor %}</span>
+      <span class="cap">Send Money</span>
+    </label>
+    {% endif %}
+  </div>
+
+  {% if methods %}
+  <div id="manual-box" class="manual-box hide">
+    <div class="label bn">যে মাধ্যমে টাকা পাঠাবেন সেটি সিলেক্ট করুন</div>
+    <div class="method-tabs">
+      {% for m in methods %}
+      <label class="method-tab" style="--mc: {{ m.color }}">
+        <input type="radio" name="method_id" value="{{ m.id }}" {% if loop.first %}checked{% endif %}>
+        <span><i></i>{{ m.name }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    {% for m in methods %}
+    <div class="pay-to hide" data-method="{{ m.id }}">
+      <div class="small muted">{{ m.name }} {{ m.account_type }} নম্বর</div>
+      <div class="num">{{ m.number }} <button type="button" class="copy-btn" data-copy="{{ m.number }}">{{ icon('copy') }} Copy</button></div>
+      <ol>
+        <li>{{ m.instructions or (m.name ~ ' থেকে Send Money করুন।') }}</li>
+        <li>ঠিক <b class="pay-amount">—</b> টাকা পাঠান।</li>
+        <li>যে নম্বর থেকে পাঠিয়েছেন সেটি ও Transaction ID নিচে লিখুন।</li>
+      </ol>
+    </div>
+    {% endfor %}
+    <div class="field">
+      <label class="bn" for="sender_number">যে নম্বর থেকে টাকা পাঠিয়েছেন</label>
+      <input class="input" id="sender_number" name="sender_number" inputmode="numeric" placeholder="01XXXXXXXXX" maxlength="14" autocomplete="off">
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label class="bn" for="trx_id">Transaction ID</label>
+      <input class="input" id="trx_id" name="trx_id" placeholder="যেমন: 9AB3CD4EF5" maxlength="30" autocomplete="off" style="text-transform:uppercase">
+    </div>
+  </div>
+  {% endif %}
+{%- endmacro %}
+
+{# Live countdown. seconds is computed on the server, so the user's clock doesn't matter. #}
+{% macro countdown(secs, label='Ends in', reload=True) -%}
+  <span class="countdown" data-countdown="{{ secs }}" {% if reload %}data-reload{% endif %}>
+    {%- if label %}<span class="lbl">{{ label }}</span>{% endif -%}
+    {%- set d = secs // 86400 %}{% set h = (secs % 86400) // 3600 %}{% set m = (secs % 3600) // 60 %}{% set s = secs % 60 -%}
+    <b data-d {% if not d %}hidden{% endif %}>{{ d }}d</b><b data-h>{{ '%02d' % h }}</b>:<b data-m>{{ '%02d' % m }}</b>:<b data-s>{{ '%02d' % s }}</b>
+  </span>
+{%- endmacro %}
+
+{% macro flash_card(f) -%}
+  <a class="fcard" href="{{ url_for('flash.detail', fid=f.id, slug=f.slug) }}">
+    <div class="fcard-img">
+      {%- if f.image %}<img src="{{ upload_url(f.image) }}" alt="{{ f.product_name }}" loading="lazy">
+      {%- else %}<div class="ph" style="--h: {{ 340 + (f.product_id * 23) % 40 }}">{{ icon('gem') }}<span></span></div>{% endif %}
+      {% if f.off %}<span class="off-badge">-{{ f.off }}%</span>{% endif %}
+      {% if f.state == 'soldout' %}<span class="state-badge">Sold Out</span>{% elif f.state == 'upcoming' %}<span class="state-badge">Coming Soon</span>{% endif %}
+    </div>
+    <div class="fcard-body">
+      <span class="pname">{{ f.product_name }}</span>
+      <span class="kname">{{ f.package_name }}</span>
+      <span class="prices"><span class="now">{{ f.sale_price|money }}</span>{% if f.regular_price > f.sale_price %}<s>{{ f.regular_price|money }}</s>{% endif %}</span>
+      {% if f.state != 'upcoming' %}
+      <span class="stockbar"><i style="width: {{ f.pct_sold }}%"></i></span>
+      <span class="stockline"><span>{{ f.sold }} sold</span><span>{{ f.left }} left</span></span>
+      {% endif %}
+      {{ countdown(f.secs, 'Starts in' if f.state == 'upcoming' else 'Ends in') }}
+    </div>
+  </a>
+{%- endmacro %}
+
+{% macro google_button(next=None, label='Continue with Google') -%}
+  <a class="btn-google" href="{{ url_for('google.login', next=next) }}">
+    <span class="g"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg></span>
+    <span><b>{{ label }}</b><small>Quick and secure sign in</small></span>
+    <span class="arrow">{{ icon('arrow-right') }}</span>
+  </a>
+{%- endmacro %}
+
+{# Coupon field on the checkout card. Public coupons appear as tappable chips. #}
+{% macro coupon_box(coupons, user) -%}
+  <div class="coupon-box" data-logged-in="{{ '1' if user else '0' }}">
+    <label class="label" for="coupon_code">{{ icon('tag') }} Coupon Code <span class="muted small">(থাকলে)</span></label>
+    <div class="coupon-row">
+      <input class="input" id="coupon_code" name="coupon_code" placeholder="যেমন: SAVE10" autocomplete="off" maxlength="30" style="text-transform:uppercase">
+      <button type="button" class="btn btn-outline" id="coupon-apply">Apply</button>
+    </div>
+    <div id="coupon-msg" class="coupon-msg"></div>
+    {% if coupons %}
+    <div class="coupon-chips">
+      {% for c in coupons %}
+      <button type="button" class="coupon-chip" data-coupon="{{ c.code }}" title="{{ c.description or '' }}">
+        <b>{{ c.code }}</b><span>{{ coupon_label(c) }}{% if c.min_order %} · min ৳{{ c.min_order }}{% endif %}</span>
+      </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+{%- endmacro %}

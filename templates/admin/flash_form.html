@@ -1,0 +1,43 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ 'Edit Flash Sale' if f.id else 'New Flash Sale' }}{% endblock %}
+{% block content %}
+<div class="admin-top">
+  <h1>{{ 'Edit Flash Sale #' ~ f.id if f.id else 'New Flash Sale' }}</h1>
+  <a class="btn btn-outline btn-sm" href="{{ url_for('admin.flash_sales') }}">← Flash Sale</a>
+</div>
+{% if f.id %}
+<div class="kpis">
+  <div class="card kpi"><small>Sold</small><b>{{ f.sold }} / {{ f.stock }}</b></div>
+  <div class="card kpi"><small>Delivered</small><b>{{ f.delivered }}</b></div>
+  <div class="card kpi"><small>Status</small><b style="font-size:18px">{{ f.state|capitalize }}</b></div>
+  <div class="card kpi"><small>Orders</small><a href="{{ url_for('admin.orders', f='all', flash=f.id) }}">View orders →</a></div>
+</div>
+{% endif %}
+<section class="card">
+  <form class="card-body" method="post" action="{{ url_for('admin.flash_edit', fid=f.id) if f.id else url_for('admin.flash_new') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <div class="field full"><label for="package_id">Package</label>
+        <select class="select" id="package_id" name="package_id" required>
+          <option value="">— choose a package —</option>
+          {% set ns = namespace(last=None) %}
+          {% for k in pkgs %}
+            {% if k.product_name != ns.last %}{% if ns.last is not none %}</optgroup>{% endif %}<optgroup label="{{ k.product_name }}">{% set ns.last = k.product_name %}{% endif %}
+            <option value="{{ k.id }}" {% if f.package_id|string == k.id|string %}selected{% endif %}>{{ k.name }} — regular ৳{{ k.price }}</option>
+          {% endfor %}
+          {% if ns.last is not none %}</optgroup>{% endif %}
+        </select></div>
+      <div class="field"><label for="sale_price">Flash sale price (৳)</label><input class="input" id="sale_price" name="sale_price" type="number" min="1" value="{{ f.sale_price or '' }}" required></div>
+      <div class="field"><label for="stock">Stock (how many can be sold)</label><input class="input" id="stock" name="stock" type="number" min="1" value="{{ f.stock or '' }}" required></div>
+      <div class="field"><label for="starts_at">Starts (Bangladesh time)</label><input class="input" id="starts_at" name="starts_at" type="datetime-local" value="{{ starts }}" required></div>
+      <div class="field"><label for="ends_at">Ends (Bangladesh time)</label><input class="input" id="ends_at" name="ends_at" type="datetime-local" value="{{ ends }}" required></div>
+      <div class="field"><label for="per_user_limit">Max per customer (0 = no limit)</label><input class="input" id="per_user_limit" name="per_user_limit" type="number" min="0" value="{{ f.per_user_limit if f.per_user_limit is not none else 1 }}"></div>
+      <div class="field" style="align-self:end"><label class="check"><input type="checkbox" name="is_active" value="1" {% if f.is_active|string == '1' %}checked{% endif %}> Active (show on website)</label></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">{{ 'Save' if f.id else 'Create Flash Sale' }}</button>
+      {% if f.id %}<button class="btn btn-ghost" name="delete" value="1" formnovalidate data-confirm="Delete this flash sale? Existing orders stay.">{{ icon('trash') }} Delete</button>{% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

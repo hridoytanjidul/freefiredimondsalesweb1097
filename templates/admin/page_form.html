@@ -1,0 +1,13 @@
+{% extends 'admin/base.html' %}
+{% block title %}Edit {{ page.title }}{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Edit: {{ page.title }}</h1><a class="btn btn-outline btn-sm" href="{{ url_for('admin.pages') }}">← Pages</a></div>
+<section class="card">
+  <form class="card-body" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label>Title</label><input class="input" name="title" value="{{ page.title }}" maxlength="80"></div>
+    <div class="field"><label>Content (HTML: &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;&lt;li&gt;, &lt;b&gt;)</label><textarea class="textarea" name="content" rows="18">{{ page.content }}</textarea></div>
+    <div class="actions"><button class="btn btn-primary" type="submit">Save</button><a class="btn btn-ghost" href="{{ page_url(page.slug) }}" target="_blank">{{ icon('external') }} View</a></div>
+  </form>
+</section>
+{% endblock %}

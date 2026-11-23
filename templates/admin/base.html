@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Admin{% endblock %} · {{ S.site_name }}</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ asset_v }}">
+  <style>:root { --primary: {{ S.theme_color }}; }</style>
+</head>
+<body class="admin-body">
+<div class="admin-shell">
+  <aside class="admin-side">
+    <a href="{{ url_for('admin.dashboard') }}" class="logo"><span class="logo-mark">{{ icon('gem') }}</span><span class="logo-text">Admin</span></a>
+    <nav>
+      <a href="{{ url_for('admin.dashboard') }}" class="{{ 'active' if nav == 'dashboard' }}">{{ icon('chart') }} Dashboard</a>
+      <a href="{{ url_for('admin.orders') }}" class="{{ 'active' if nav == 'orders' }}">{{ icon('bag') }} Orders</a>
+      <a href="{{ url_for('admin.wallet_requests') }}" class="{{ 'active' if nav == 'wallet' }}">{{ icon('wallet') }} Add Money</a>
+      <a href="{{ url_for('admin.products') }}" class="{{ 'active' if nav == 'products' }}">{{ icon('box') }} Products</a>
+      <a href="{{ url_for('admin.flash_sales') }}" class="{{ 'active' if nav == 'flash' }}">{{ icon('zap') }} Flash Sale</a>
+      <a href="{{ url_for('admin.coupon_list') }}" class="{{ 'active' if nav == 'coupons' }}">{{ icon('tag') }} Coupons</a>
+      <a href="{{ url_for('admin.spin_admin') }}" class="{{ 'active' if nav == 'spin' }}">{{ icon('award') }} Spin Wheel</a>
+      <a href="{{ url_for('admin.vouchers') }}" class="{{ 'active' if nav == 'vouchers' }}">{{ icon('gift') }} Voucher Codes</a>
+      <a href="{{ url_for('admin.categories') }}" class="{{ 'active' if nav == 'categories' }}">{{ icon('folder') }} Categories</a>
+      <a href="{{ url_for('admin.banners') }}" class="{{ 'active' if nav == 'banners' }}">{{ icon('image') }} Banners</a>
+      <a href="{{ url_for('admin.payment_methods') }}" class="{{ 'active' if nav == 'methods' }}">{{ icon('card') }} Payment Numbers</a>
+      <a href="{{ url_for('admin.users') }}" class="{{ 'active' if nav == 'users' }}">{{ icon('users') }} Users</a>
+      <a href="{{ url_for('admin.pages') }}" class="{{ 'active' if nav == 'pages' }}">{{ icon('file') }} Pages</a>
+      <a href="{{ url_for('admin.settings') }}" class="{{ 'active' if nav == 'settings' }}">{{ icon('settings') }} Settings</a>
+      <a href="{{ url_for('home') }}" target="_blank">{{ icon('external') }} View Site</a>
+    </nav>
+  </aside>
+  <main class="admin-main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}<div class="flashes" style="margin:0 0 14px">
+        {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat if cat in ('success','error','info') else 'info' }}">{{ icon('check-circle' if cat == 'success' else 'info') }}<span>{{ msg }}</span><button class="x" type="button">{{ icon('x') }}</button></div>
+        {% endfor %}
+      </div>{% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script src="{{ url_for('static', filename='js/app.js') }}?v={{ asset_v }}" defer></script>
+</body>
+</html>

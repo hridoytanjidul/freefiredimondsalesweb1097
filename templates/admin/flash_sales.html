@@ -1,0 +1,39 @@
+{% extends 'admin/base.html' %}
+{% block title %}Flash Sale{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Flash Sale</h1><a class="btn btn-primary" href="{{ url_for('admin.flash_new') }}">{{ icon('plus') }} New Flash Sale</a></div>
+<p class="muted small">A flash sale sells one package at a lower price for a limited time and stock. It shows on the homepage with a countdown. Cancelled orders give their stock back automatically, and unpaid Instant Pay orders release theirs after 30 minutes.</p>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>#</th><th>Package</th><th>Price</th><th>Sold / Stock</th><th>Per user</th><th>Starts (BD)</th><th>Ends (BD)</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for f in rows %}
+      <tr>
+        <td>{{ f.id }}</td>
+        <td><b>{{ f.package_name }}</b><div class="small muted">{{ f.product_name }}</div></td>
+        <td><b style="color:#e11d48">{{ f.sale_price|money }}</b> <s class="small muted">{{ f.regular_price|money }}</s></td>
+        <td>{{ f.sold }} / {{ f.stock }}<div class="small muted">{{ f.delivered }} delivered</div></td>
+        <td>{{ f.per_user_limit or '∞' }}</td>
+        <td class="small">{{ f.starts_at|bdtime }}</td>
+        <td class="small">{{ f.ends_at|bdtime }}</td>
+        <td>
+          {% if not f.is_active %}<span class="badge badge-bad">Off</span>
+          {% elif f.state == 'live' %}<span class="badge badge-ok">Live</span>
+          {% elif f.state == 'upcoming' %}<span class="badge badge-info">Upcoming</span>
+          {% elif f.state == 'soldout' %}<span class="badge badge-warn">Sold out</span>
+          {% else %}<span class="badge badge-bad">Ended</span>{% endif %}
+        </td>
+        <td class="actions">
+          <a class="btn btn-sm btn-primary" href="{{ url_for('admin.flash_edit', fid=f.id) }}">{{ icon('edit') }} Edit</a>
+          <a class="btn btn-sm btn-ghost" href="{{ url_for('flash.detail', fid=f.id, slug=f.slug) }}" target="_blank">{{ icon('external') }}</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{{ icon('zap') }}<div>এখনো কোনো ফ্ল্যাশ সেল নেই।</div></div>
+  {% endif %}
+</section>
+{% endblock %}

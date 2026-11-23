@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import payment_options %}
+{% block title %}Add Money - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  {% include 'profile/_head.html' %}
+  <div class="grid-2">
+    <section class="card">
+      <div class="card-head">{{ icon('wallet') }}<h3>Add Money to Wallet</h3></div>
+      <form id="wallet-form" class="card-body" method="post" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field">
+          <label for="amount">Amount (৳)</label>
+          <input class="input" id="amount" name="amount" type="number" min="{{ lo }}" max="{{ hi }}" step="1" required placeholder="{{ lo }} - {{ hi }}">
+          <div class="amount-chips">
+            {% for a in [100, 200, 500, 1000, 2000] if a >= lo and a <= hi %}<button type="button" data-amount="{{ a }}">৳{{ a }}</button>{% endfor %}
+          </div>
+          <div class="hint">সর্বনিম্ন {{ lo|money }} · সর্বোচ্চ {{ hi|money }}</div>
+        </div>
+        {% if gateway or methods %}
+          <div class="label" style="margin-top:6px">Payment Method</div>
+          {{ payment_options(methods, gateway, allow_wallet=False) }}
+          <button type="submit" class="btn btn-primary btn-block btn-lg" style="margin-top:14px">Add Money</button>
+        {% else %}
+          <div class="alert-box">এখন Add Money বন্ধ আছে। সাপোর্টে যোগাযোগ করুন।</div>
+        {% endif %}
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="card-head">{{ icon('clock') }}<h3>My Add Money Requests</h3></div>
+      {% if reqs %}
+      <ul class="list">
+        {% for r in reqs %}
+        <li class="list-item">
+          <div class="main">
+            <b>{{ r.method }} · <span class="mono">{{ r.trx_id }}</span></b>
+            <span>From {{ r.sender_number }} · {{ r.created_at|bdtime }}</span>
+            {% if r.admin_note and r.status == 'rejected' %}<div class="note">কারণ: {{ r.admin_note }}</div>{% endif %}
+          </div>
+          <div class="side"><b>{{ r.amount|money }}</b>{{ status_badge(r.status) }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="empty">{{ icon('wallet') }}<div>এখনো কোনো রিকোয়েস্ট নেই।</div></div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

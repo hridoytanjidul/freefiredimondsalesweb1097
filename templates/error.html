@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}{{ code }} - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <section class="card result-box bad">
+    <div class="big" style="font-size:24px;font-weight:800">{{ code }}</div>
+    <p class="bn" style="font-size:17px">{{ message }}</p>
+    <a class="btn btn-primary" href="{{ url_for('home') }}">{{ icon('home') }} Home</a>
+  </section>
+</div>
+{% endblock %}

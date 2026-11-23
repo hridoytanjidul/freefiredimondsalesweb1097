@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Free Fire ID Checker - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <h1 class="page-title">Free Fire ID Checker</h1>
+  <section class="card">
+    <div class="card-body">
+      {% if enabled %}
+      <div class="field">
+        <label class="bn" for="uid">আপনার Free Fire Player ID দিন</label>
+        <input class="input" id="uid" inputmode="numeric" placeholder="যেমন: 1234567890" maxlength="15">
+      </div>
+      <button type="button" class="btn btn-primary btn-block bn" data-check-id="#uid" data-result="#uid-result">{{ icon('search') }} নাম চেক করুন</button>
+      <div id="uid-result" class="id-result"></div>
+      {% else %}
+      <div class="empty">{{ icon('search') }}<div>ID Checker এখন চালু নেই।</div></div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

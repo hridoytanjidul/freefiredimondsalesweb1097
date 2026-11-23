@@ -1,0 +1,59 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ u.name }}{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>{{ u.name }}</h1><a class="btn btn-outline btn-sm" href="{{ url_for('admin.users') }}">← Users</a></div>
+<div class="grid-2">
+  <section class="card">
+    <div class="card-head">{{ icon('user') }}<h3>Account</h3></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>ID</dt><dd>{{ u.id }}</dd>
+        <dt>Email</dt><dd>{{ u.email }}</dd>
+        <dt>Phone</dt><dd class="mono">{{ u.phone or '—' }}</dd>
+        <dt>Login</dt><dd>{% if u.google_sub %}<span class="badge badge-info">Google</span>{% endif %}{% if not u.password_hash.startswith('!') %} <span class="badge badge-info">Password</span>{% endif %}</dd>
+        <dt>Balance</dt><dd><b>{{ u.balance|money }}</b></dd>
+        <dt>Total spent</dt><dd>{{ spent|money }}</dd>
+        <dt>Joined</dt><dd>{{ u.created_at|bdtime }}</dd>
+        <dt>Role</dt><dd>{{ 'Admin' if u.is_admin else 'Customer' }}{% if u.is_banned %} · <span class="badge badge-bad">Banned</span>{% endif %}</dd>
+      </dl>
+      {% if u.id != U.id %}
+      <div class="actions" style="margin-top:14px">
+        <form method="post" action="{{ url_for('admin.user_toggle', uid=u.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm {{ 'btn-ok' if u.is_banned else 'btn-bad' }}" name="field" value="is_banned" data-confirm="Are you sure?">{{ 'Unban' if u.is_banned else 'Ban user' }}</button></form>
+        <form method="post" action="{{ url_for('admin.user_toggle', uid=u.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline" name="field" value="is_admin" data-confirm="Change admin access for {{ u.name }}?">{{ 'Remove admin' if u.is_admin else 'Make admin' }}</button></form>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-head">{{ icon('wallet') }}<h3>Adjust Balance</h3></div>
+    <form class="card-body" method="post" action="{{ url_for('admin.user_balance', uid=u.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label>Amount (use minus to deduct, e.g. -50)</label><input class="input" name="amount" type="number" required></div>
+      <div class="field"><label>Note (customer sees this in transactions)</label><input class="input" name="note" maxlength="200" placeholder="Bonus / Correction"></div>
+      <button class="btn btn-primary" type="submit" data-confirm="Update balance?">Update Balance</button>
+    </form>
+  </section>
+</div>
+
+<section class="card" style="margin-top:16px">
+  <div class="card-head">{{ icon('bag') }}<h3>Last 20 orders</h3></div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>#</th><th>Item</th><th>Player ID</th><th>Price</th><th>Payment</th><th>Status</th><th>Time</th></tr></thead>
+    <tbody>{% for o in orders %}
+      <tr><td><a href="{{ url_for('admin.order_detail', oid=o.id) }}">#{{ o.id }}</a></td><td>{{ o.package_name }}</td><td class="mono">{{ o.player_id }}</td><td>{{ o.price|money }}</td><td>{{ o.payment_method }}</td><td>{{ status_badge(o.status) }}</td><td class="small">{{ o.created_at|bdtime }}</td></tr>
+    {% else %}<tr><td colspan="7" class="muted">No orders</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+
+<section class="card" style="margin-top:16px">
+  <div class="card-head">{{ icon('list') }}<h3>Last 20 wallet transactions</h3></div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Type</th><th>Description</th><th>Amount</th><th>Balance after</th><th>Time</th></tr></thead>
+    <tbody>{% for t in txs %}
+      <tr><td>{{ t.type }}</td><td>{{ t.description }}</td><td class="{{ 'amt-pos' if t.amount > 0 else 'amt-neg' }}">{{ t.amount }}</td><td>{{ t.balance_after|money }}</td><td class="small">{{ t.created_at|bdtime }}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">No transactions</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% endblock %}

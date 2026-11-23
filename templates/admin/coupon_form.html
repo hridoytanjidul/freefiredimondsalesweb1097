@@ -1,0 +1,50 @@
+{% extends 'admin/base.html' %}
+{% block title %}{{ 'Edit ' ~ c.code if c.id else 'New Coupon' }}{% endblock %}
+{% block content %}
+<div class="admin-top">
+  <h1>{{ 'Coupon ' ~ c.code if c.id else 'New Coupon' }}</h1>
+  <a class="btn btn-outline btn-sm" href="{{ url_for('admin.coupon_list') }}">← Coupons</a>
+</div>
+{% if c.id %}
+<div class="kpis">
+  <div class="card kpi"><small>Used</small><b>{{ c.used }}{% if c.usage_limit %} / {{ c.usage_limit }}{% endif %}</b></div>
+  <div class="card kpi"><small>Discount</small><b style="font-size:18px">{{ coupon_label(c) }}</b></div>
+  <div class="card kpi"><small>Status</small><b style="font-size:18px">{{ 'Off' if not c.is_active else c.timing|replace('ok', 'Active')|capitalize }}</b></div>
+</div>
+{% endif %}
+<section class="card">
+  <form class="card-body" method="post" action="{{ url_for('admin.coupon_edit', cid=c.id) if c.id else url_for('admin.coupon_new') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-grid">
+      <div class="field"><label for="code">Code</label><input class="input mono" id="code" name="code" value="{{ c.code or '' }}" required maxlength="30" placeholder="SAVE10" style="text-transform:uppercase"></div>
+      <div class="field"><label for="description">Description (shown on hover)</label><input class="input" id="description" name="description" value="{{ c.description or '' }}" maxlength="120" placeholder="Eid offer"></div>
+      <div class="field"><label for="discount_type">Discount type</label>
+        <select class="select" id="discount_type" name="discount_type">
+          <option value="percent" {% if c.discount_type != 'fixed' %}selected{% endif %}>Percent (%)</option>
+          <option value="fixed" {% if c.discount_type == 'fixed' %}selected{% endif %}>Fixed amount (৳)</option>
+        </select></div>
+      <div class="field"><label for="value">Discount value</label><input class="input" id="value" name="value" type="number" min="1" value="{{ c.value or '' }}" required placeholder="10"></div>
+      <div class="field"><label for="max_discount">Max discount ৳ (percent only, 0 = no cap)</label><input class="input" id="max_discount" name="max_discount" type="number" min="0" value="{{ c.max_discount or 0 }}"></div>
+      <div class="field"><label for="min_order">Minimum package price ৳ (0 = any)</label><input class="input" id="min_order" name="min_order" type="number" min="0" value="{{ c.min_order or 0 }}"></div>
+      <div class="field"><label for="product_id">Applies to</label>
+        <select class="select" id="product_id" name="product_id">
+          <option value="">All products</option>
+          {% for p in products %}<option value="{{ p.id }}" {% if c.product_id|string == p.id|string %}selected{% endif %}>Only: {{ p.name }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label for="usage_limit">Total uses (0 = unlimited)</label><input class="input" id="usage_limit" name="usage_limit" type="number" min="0" value="{{ c.usage_limit or 0 }}"></div>
+      <div class="field"><label for="per_user_limit">Uses per customer (0 = unlimited)</label><input class="input" id="per_user_limit" name="per_user_limit" type="number" min="0" value="{{ c.per_user_limit if c.per_user_limit is not none else 1 }}"></div>
+      <div class="field"></div>
+      <div class="field"><label for="starts_at">Starts (BD time, optional)</label><input class="input" id="starts_at" name="starts_at" type="datetime-local" value="{{ starts or '' }}"></div>
+      <div class="field"><label for="ends_at">Ends (BD time, optional)</label><input class="input" id="ends_at" name="ends_at" type="datetime-local" value="{{ ends or '' }}"></div>
+      <div class="field full">
+        <label class="check"><input type="checkbox" name="is_public" value="1" {% if c.is_public|string == '1' %}checked{% endif %}> Public — show as a chip on product pages</label><br>
+        <label class="check"><input type="checkbox" name="is_active" value="1" {% if c.is_active|string == '1' %}checked{% endif %}> Active</label>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">{{ 'Save' if c.id else 'Create Coupon' }}</button>
+      {% if c.id %}<button class="btn btn-ghost" name="delete" value="1" formnovalidate data-confirm="Delete coupon {{ c.code }}?">{{ icon('trash') }} Delete</button>{% endif %}
+    </div>
+  </form>
+</section>
+{% endblock %}

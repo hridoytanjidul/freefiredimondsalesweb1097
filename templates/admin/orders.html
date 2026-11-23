@@ -1,0 +1,45 @@
+{% extends 'admin/base.html' %}
+{% from '_macros.html' import pager %}
+{% block title %}Orders{% endblock %}
+{% block content %}
+<div class="admin-top">
+  <h1>Orders</h1>
+  <form class="search-form" method="get">
+    <input type="hidden" name="f" value="{{ f }}">
+    {% if flash_id %}<input type="hidden" name="flash" value="{{ flash_id }}">{% endif %}
+    <input class="input" name="q" value="{{ search }}" placeholder="Order #, Player ID, TrxID, email">
+    <button class="btn btn-outline btn-sm" type="submit">{{ icon('search') }}</button>
+  </form>
+</div>
+<div class="filters">
+  {% for key, val in filters.items() %}
+  <a href="{{ url_for('admin.orders', f=key, flash=flash_id) }}" class="{{ 'active' if f == key }}">{{ val[1] }}{% if counts.get(key) %}<span class="count">{{ counts[key] }}</span>{% endif %}</a>
+  {% endfor %}
+</div>
+{% if flash_id %}<div class="alert-box">Showing orders of <b>Flash Sale #{{ flash_id }}</b> only · <a href="{{ url_for('admin.orders', f=f) }}">show all</a></div>{% endif %}
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>#</th><th>Customer</th><th>Item</th><th>Player ID</th><th>Price</th><th>Payment</th><th>Status</th><th>Time</th><th></th></tr></thead>
+    <tbody>
+    {% for o in rows %}
+      <tr>
+        <td>#{{ o.id }}</td>
+        <td>{{ o.user_name }}<div class="small muted">{{ o.user_email }}</div></td>
+        <td>{{ o.package_name }}{% if o.flash_sale_id %} <span class="badge badge-flash">Flash</span>{% endif %}{% if o.is_voucher %} <span class="badge badge-info">Voucher</span>{% endif %}<div class="small muted">{{ o.product_name }}</div></td>
+        <td class="mono">{% if o.is_voucher %}—{% else %}{{ o.player_id }} <button type="button" class="copy-btn" data-copy="{{ o.player_id }}">{{ icon('copy') }}</button>{% endif %}</td>
+        <td>{{ o.price|money }}{% if o.coupon_code %}<div class="small muted">{{ o.coupon_code }} −{{ o.discount }}</div>{% endif %}</td>
+        <td>{{ o.payment_method }}{% if o.trx_id %}<div class="mono small">{{ o.trx_id }}</div>{% endif %}{{ status_badge(o.payment_status) }}</td>
+        <td>{{ status_badge(o.status) }}</td>
+        <td class="small">{{ o.created_at|bdtime }}</td>
+        <td><a class="btn btn-sm btn-primary" href="{{ url_for('admin.order_detail', oid=o.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{{ icon('bag') }}<div>কোনো অর্ডার নেই।</div></div>
+  {% endif %}
+</section>
+{{ pager(page, has_next, 'admin.orders', f=f, q=search or None, flash=flash_id) }}
+{% endblock %}

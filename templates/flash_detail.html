@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import product_image, payment_options, countdown %}
+{% block title %}⚡ {{ f.package_name }} Flash Sale - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+
+  <div class="flash-hero">
+    <section class="card">
+      <div class="flash-head" style="border-radius: var(--radius) var(--radius) 0 0"><h2>{{ icon('zap') }} Flash Sale</h2>
+        {% if f.off %}<span class="off-badge" style="position:static">-{{ f.off }}% OFF</span>{% endif %}</div>
+      <div class="card-body">
+        <div class="product-hero" style="margin:0;padding:0;border:0;box-shadow:none">
+          <div class="thumb">{{ product_image({'id': f.product_id, 'image': f.image, 'name': f.product_name}) }}</div>
+          <div><h1 style="margin-bottom:2px">{{ f.package_name }}</h1><span class="muted">{{ f.product_name }}</span></div>
+        </div>
+        <div class="bigprice"><span class="now">{{ f.sale_price|money }}</span>{% if f.regular_price > f.sale_price %}<s>{{ f.regular_price|money }}</s>{% endif %}</div>
+        {% if f.state == 'upcoming' %}
+          {{ countdown(f.secs, 'Starts in') }}
+        {% elif f.state == 'live' %}
+          {{ countdown(f.secs, 'Ends in') }}
+        {% else %}
+          <span class="badge badge-bad" style="font-size:14px;align-self:flex-start">{{ 'Sold Out' if f.state == 'soldout' else 'Ended' }}</span>
+        {% endif %}
+        {% if f.state != 'upcoming' %}
+        <div><span class="stockbar"><i style="width: {{ f.pct_sold }}%"></i></span>
+          <div class="stockline" style="margin-top:4px"><span>{{ f.sold }} sold</span><span>{{ f.left }} left of {{ f.stock }}</span></div></div>
+        {% endif %}
+        {% if f.per_user_limit %}<div class="limit-note">{{ icon('info') }} একজন সর্বোচ্চ <b>{{ f.per_user_limit }}</b> বার কিনতে পারবেন।{% if U %} আপনি কিনেছেন: <b>{{ mine }}</b>{% endif %}</div>{% endif %}
+      </div>
+    </section>
+
+    <form id="order-form" class="card" method="post" action="{{ url_for('flash.order', fid=f.id) }}" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="card-body">
+        <div class="flash-pkg">
+          <label class="hide"><input type="radio" name="package_id" value="{{ f.package_id }}" data-price="{{ f.sale_price }}" checked></label>
+          <b>{{ f.package_name }}</b><b style="color:#e11d48">{{ f.sale_price|money }}</b>
+        </div>
+        {% if f.kind == 'voucher' %}
+        <p class="hint" style="margin:10px 0">{{ icon('gift') }} পেমেন্টের পর কোডটি সাথে সাথে আপনার প্রোফাইলের Gift Vouchers-এ দেখাবে।</p>
+        {% else %}
+        <div class="field" style="margin-top:6px">
+          <label class="bn" for="player_id">{{ f.input_label }}</label>
+          <input class="input" id="player_id" name="player_id" placeholder="{{ f.input_label }}" autocomplete="off" maxlength="120" {% if f.numeric_id %}inputmode="numeric"{% endif %}>
+        </div>
+        {% if id_checker and f.numeric_id %}
+        <button type="button" class="btn btn-outline btn-block bn" data-check-id="#player_id" data-result="#id-result">আপনার গেম আইডির নাম চেক করুন</button>
+        <div id="id-result" class="id-result"></div>
+        {% endif %}
+        {% endif %}
+        <div class="label" style="margin-top:6px">Payment</div>
+        {{ payment_options(methods, gateway, allow_wallet=True) }}
+        <div class="need">{{ icon('info') }} প্রোডাক্ট কিনতে আপনার প্রয়োজন <b id="need-amount">{{ f.sale_price }}</b> টাকা।</div>
+        {% if f.state != 'live' %}
+          <button type="button" class="btn btn-block btn-lg" disabled>{{ 'Coming Soon' if f.state == 'upcoming' else ('Sold Out' if f.state == 'soldout' else 'Ended') }}</button>
+        {% elif U %}
+          <div id="wallet-warn" class="hint" style="margin-bottom:10px">আপনার ওয়ালেট ব্যালেন্স: <b>{{ U.balance|money }}</b> · <a href="{{ url_for('add_wallet') }}">Add Money</a></div>
+          <button type="submit" class="btn btn-primary btn-block btn-lg" style="background:#e11d48">{{ icon('zap') }} Buy Now</button>
+        {% else %}
+          <div class="warn-line">{{ icon('info') }} Please Login To Purchase</div>
+          <a class="btn btn-primary btn-block btn-lg" href="{{ url_for('login', next=request.path) }}">Login</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  {% if f.description %}
+  <section class="card rules">
+    <div class="card-head">{{ icon('file') }}<h3>Rules &amp; Conditions</h3></div>
+    <div class="card-body">{{ f.description|safe }}</div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'admin/base.html' %}
+{% block title %}Categories{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Categories</h1></div>
+<p class="muted small">Each category is a section on the homepage (e.g. "Regular Game TopUp"). The last word of the name is shown in the theme colour.</p>
+<section class="card">
+  <div class="table-wrap"><table class="table">
+    <tbody>
+    {% for c in rows %}
+      <tr><td>
+        <form class="inline-form" method="post" action="{{ url_for('admin.category_update', cid=c.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input w-md" name="name" value="{{ c.name }}" required maxlength="60" style="width:240px">
+          <input class="input w-sm" name="sort_order" type="number" value="{{ c.sort_order }}" title="Sort order">
+          <label class="check"><input type="checkbox" name="is_active" value="1" {% if c.is_active %}checked{% endif %}> Visible</label>
+          <span class="small muted">{{ c.n }} products</span>
+          <button class="btn btn-sm btn-primary" type="submit">Save</button>
+          <button class="btn btn-sm btn-ghost" name="delete" value="1" data-confirm="Delete category {{ c.name }}?">{{ icon('trash') }}</button>
+        </form>
+      </td></tr>
+    {% endfor %}
+      <tr style="background:var(--primary-50)"><td>
+        <form class="inline-form" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input class="input" name="name" placeholder="New category name" required maxlength="60" style="width:240px">
+          <input class="input w-sm" name="sort_order" type="number" value="{{ rows|length + 1 }}">
+          <button class="btn btn-sm btn-ok" type="submit">{{ icon('plus') }} Add</button>
+        </form>
+      </td></tr>
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

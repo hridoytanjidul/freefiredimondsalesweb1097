@@ -1,0 +1,63 @@
+{% extends 'admin/base.html' %}
+{% block title %}Order #{{ o.id }}{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Order #{{ o.id }} {{ status_badge(o.status) }}</h1><a class="btn btn-outline btn-sm" href="{{ url_for('admin.orders') }}">← Orders</a></div>
+<div class="grid-2">
+  <section class="card">
+    <div class="card-head">{{ icon('bag') }}<h3>Details</h3></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>Product</dt><dd>{{ o.product_name }}</dd>
+        <dt>Package</dt><dd><b>{{ o.package_name }}</b>{% if o.flash_sale_id %} <a class="badge badge-flash" href="{{ url_for('admin.flash_edit', fid=o.flash_sale_id) }}">Flash Sale #{{ o.flash_sale_id }}</a>{% endif %}</dd>
+        {% if o.is_voucher %}
+        <dt>Voucher code</dt><dd class="mono">{% if vc %}<b>{{ vc.code }}</b> <span class="badge badge-{{ 'ok' if vc.status == 'delivered' else 'warn' }}">{{ vc.status }}</span>{% elif o.voucher_code %}<b>{{ o.voucher_code }}</b> <span class="badge badge-ok">delivered</span>{% else %}<span class="muted">none reserved</span>{% endif %}</dd>
+        {% else %}
+        <dt>Player ID</dt><dd class="mono" style="font-size:17px"><b>{{ o.player_id }}</b> <button type="button" class="copy-btn" data-copy="{{ o.player_id }}">{{ icon('copy') }} Copy</button></dd>
+        {% endif %}
+        <dt>Price paid</dt><dd>{{ o.price|money }}{% if o.coupon_code %} <span class="muted small">(coupon <b>{{ o.coupon_code }}</b> −{{ o.discount|money }}, list price {{ (o.price + o.discount)|money }})</span>{% endif %}</dd>
+        <dt>Payment</dt><dd>{{ o.payment_method }} {{ status_badge(o.payment_status) }}</dd>
+        {% if o.sender_number %}<dt>Sender</dt><dd class="mono">{{ o.sender_number }}</dd>{% endif %}
+        {% if o.trx_id %}<dt>TrxID</dt><dd class="mono"><b>{{ o.trx_id }}</b></dd>{% endif %}
+        <dt>Placed</dt><dd>{{ o.created_at|bdtime }}</dd>
+        <dt>Updated</dt><dd>{{ o.updated_at|bdtime }}</dd>
+        {% if o.admin_note %}<dt>Note</dt><dd>{{ o.admin_note }}</dd>{% endif %}
+        <dt>Customer</dt><dd><a href="{{ url_for('admin.user_detail', uid=o.user_id) }}">{{ o.user_name }}</a><div class="small muted">{{ o.user_email }} {{ o.user_phone or '' }} · balance {{ o.user_balance|money }}</div></dd>
+      </dl>
+      {% for p in gp %}
+      <div class="hint">Gateway: invoice {{ p.invoice_id or '—' }} · {{ p.method or '' }} {{ p.trx_id or '' }} · {{ p.status }}</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">{{ icon('settings') }}<h3>Actions</h3></div>
+    <div class="card-body">
+      {% if o.status in ('completed', 'cancelled') %}
+        <p class="muted">এই অর্ডার শেষ হয়েছে ({{ o.status }})।</p>
+      {% else %}
+        {% if o.payment_status == 'unverified' %}
+        <div class="alert-box">এই অর্ডারের পেমেন্ট ম্যানুয়াল। আপনার {{ o.payment_method }} অ্যাপে <b class="mono">{{ o.trx_id }}</b> (৳{{ o.price }}, from {{ o.sender_number }}) মিলিয়ে দেখুন।</div>
+        {% elif o.payment_status == 'awaiting' %}
+        <div class="alert-box">গেটওয়ে পেমেন্ট এখনও হয়নি। পেমেন্ট না হলে Cancel করুন।</div>
+        {% endif %}
+        <form method="post" action="{{ url_for('admin.order_update', oid=o.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field">
+            <label for="note">Note / Cancel reason (customer will see this)</label>
+            <input class="input" id="note" name="note" maxlength="300" placeholder="যেমন: Player ID ভুল">
+          </div>
+          {% if o.payment_status == 'paid' %}
+          <label class="check" style="margin-bottom:12px"><input type="checkbox" name="refund" value="1" checked> Cancel করলে {{ o.price|money }} ওয়ালেটে ফেরত দিন</label>
+          {% endif %}
+          <div class="actions">
+            {% if o.payment_status == 'unverified' %}<button class="btn btn-warn" name="action" value="verify">Payment Verified</button>{% endif %}
+            {% if o.status == 'pending' and o.payment_status != 'awaiting' %}<button class="btn btn-outline" name="action" value="processing">Mark Processing</button>{% endif %}
+            {% if o.payment_status != 'awaiting' %}<button class="btn btn-ok" name="action" value="complete" data-confirm="{{ ('Deliver the voucher code for order #' ~ o.id ~ '?') if o.is_voucher else ('Complete order #' ~ o.id ~ '? (টপআপ দেওয়া হয়েছে তো?)') }}">{{ icon('check') }} {{ 'Deliver Code' if o.is_voucher else 'Complete' }}</button>{% endif %}
+            <button class="btn btn-bad" name="action" value="cancel" data-confirm="Cancel order #{{ o.id }}?">{{ icon('x') }} Cancel</button>
+          </div>
+        </form>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

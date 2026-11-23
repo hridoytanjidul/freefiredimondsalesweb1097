@@ -1,0 +1,61 @@
+{% extends 'admin/base.html' %}
+{% block title %}Codes · {{ k.name }}{% endblock %}
+{% block content %}
+<div class="admin-top">
+  <h1>Codes: {{ k.name }} <span class="muted" style="font-size:15px">· {{ k.product_name }}</span></h1>
+  <a class="btn btn-outline btn-sm" href="{{ url_for('admin.vouchers') }}">← Voucher Codes</a>
+</div>
+{% if k.kind != 'voucher' %}
+<div class="alert-box">This product's type is <b>Top-up</b>, so these codes won't be delivered. Change the product type to "Gift Voucher" in <a href="{{ url_for('admin.product_edit', pid=k.product_id) }}">the product settings</a>.</div>
+{% endif %}
+<div class="kpis">
+  <div class="card kpi"><small>Available</small><b>{{ counts.get('available', 0) }}</b></div>
+  <div class="card kpi"><small>Reserved (payment pending)</small><b>{{ counts.get('reserved', 0) }}</b></div>
+  <div class="card kpi"><small>Delivered</small><b>{{ counts.get('delivered', 0) }}</b></div>
+  <div class="card kpi"><small>Price</small><b>{{ k.price|money }}</b></div>
+</div>
+
+<section class="card" style="margin-bottom:16px">
+  <div class="card-head">{{ icon('plus') }}<h3>Add codes</h3></div>
+  <form class="card-body" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add">
+    <div class="field"><label for="codes">Paste codes — one per line (duplicates are skipped automatically)</label>
+      <textarea class="textarea" id="codes" name="codes" rows="8" placeholder="ABCD-1234-EFGH&#10;WXYZ-9876-LMNO" required></textarea></div>
+    <button class="btn btn-primary" type="submit">{{ icon('plus') }} Add Codes</button>
+  </form>
+</section>
+
+<div class="filters">
+  {% for s in ['available', 'reserved', 'delivered'] %}<a href="{{ url_for('admin.package_codes', kid=k.id, status=s) }}" class="{{ 'active' if status == s }}">{{ s|capitalize }} ({{ counts.get(s, 0) }})</a>{% endfor %}
+</div>
+<section class="card">
+  {% if codes %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Code</th><th>Added</th>{% if status != 'available' %}<th>Order</th><th>Customer</th>{% endif %}{% if status == 'delivered' %}<th>Delivered</th>{% endif %}<th></th></tr></thead>
+    <tbody>
+    {% for c in codes %}
+      <tr>
+        <td class="mono"><b>{{ c.code }}</b></td>
+        <td class="small">{{ c.created_at|bdtime }}</td>
+        {% if status != 'available' %}<td>{% if c.order_id %}<a href="{{ url_for('admin.order_detail', oid=c.order_id) }}">#{{ c.order_id }}</a>{% endif %}</td><td>{{ c.user_name or '' }}</td>{% endif %}
+        {% if status == 'delivered' %}<td class="small">{{ c.delivered_at|bdtime }}</td>{% endif %}
+        <td>{% if c.status == 'available' %}
+          <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete"><input type="hidden" name="code_id" value="{{ c.id }}">
+            <button class="btn btn-sm btn-ghost" type="submit" data-confirm="Delete this code?">{{ icon('trash') }}</button></form>
+        {% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{{ icon('gift') }}<div>কোনো কোড নেই।</div></div>
+  {% endif %}
+</section>
+{% if status == 'available' and counts.get('available') %}
+<form method="post" style="margin-top:14px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="delete_all">
+  <button class="btn btn-sm btn-bad" type="submit" data-confirm="Delete ALL {{ counts.get('available') }} unused codes for this package?">{{ icon('trash') }} Delete all unused codes</button>
+</form>
+{% endif %}
+{% endblock %}

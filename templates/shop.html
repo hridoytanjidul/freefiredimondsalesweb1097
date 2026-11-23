@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import product_card %}
+{% block title %}All TopUp - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <h1 class="page-title">All TopUp</h1>
+  {% if products %}
+  <div class="product-grid">
+    {% for p in products %}{{ product_card(p) }}{% endfor %}
+  </div>
+  {% else %}
+  <div class="card empty">{{ icon('box') }}<div>এখনো কোনো প্রোডাক্ট নেই।</div></div>
+  {% endif %}
+</div>
+{% endblock %}

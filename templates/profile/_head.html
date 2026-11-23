@@ -1,0 +1,18 @@
+<div class="card profile-head">
+  {{ avatar(U.name, U.avatar, 'lg') }}
+  <div>
+    <h2>{{ U.name }}</h2>
+    <div class="small" style="opacity:.85">{{ U.email }}</div>
+  </div>
+  <div class="bal">
+    <small>Wallet Balance</small>
+    <b>{{ U.balance|money }}</b>
+  </div>
+</div>
+<nav class="tabs">
+  <a href="{{ url_for('profile') }}" class="{{ 'active' if tab == 'dashboard' }}">{{ icon('user') }} Dashboard</a>
+  <a href="{{ url_for('add_wallet') }}" class="{{ 'active' if tab == 'wallet' }}">{{ icon('plus') }} Add Money</a>
+  <a href="{{ url_for('my_orders') }}" class="{{ 'active' if tab == 'orders' }}">{{ icon('bag') }} My Orders</a>
+  <a href="{{ url_for('my_vouchers') }}" class="{{ 'active' if tab == 'vouchers' }}">{{ icon('gift') }} Gift Vouchers</a>
+  <a href="{{ url_for('my_transactions') }}" class="{{ 'active' if tab == 'transactions' }}">{{ icon('list') }} Transactions</a>
+</nav>

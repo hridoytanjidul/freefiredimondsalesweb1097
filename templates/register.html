@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import google_button %}
+{% block title %}Register - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="auth-wrap">
+    <div class="auth-hero">
+      <span class="eyebrow">Create Your Account</span>
+      <h1>Join <span>{{ S.site_name }}</span></h1>
+      <p>একটি অ্যাকাউন্ট খুলুন — তারপর ওয়ালেটে টাকা যোগ করে এক ক্লিকে টপআপ করুন।</p>
+      <div class="bar"></div>
+    </div>
+    <div class="card auth-card">
+      <div class="top">
+        <span class="shield">{{ icon('user') }}</span>
+        <div><b>Create account</b><span>It takes less than a minute</span></div>
+      </div>
+      {% if google_on %}
+      {{ google_button(next, 'Sign up with Google') }}
+      <div class="or-line">or create with email</div>
+      {% endif %}
+      <form method="post" action="{{ url_for('register') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <div class="field">
+          <label for="name">Full Name</label>
+          <input class="input" id="name" name="name" required maxlength="60" autocomplete="name" value="{{ form.name or '' }}">
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input class="input" id="email" name="email" type="email" required autocomplete="email" value="{{ form.email or '' }}">
+        </div>
+        <div class="field">
+          <label for="phone">Mobile Number <span class="muted small">(optional)</span></label>
+          <input class="input" id="phone" name="phone" inputmode="numeric" placeholder="01XXXXXXXXX" autocomplete="tel" value="{{ form.phone or '' }}">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="pw-wrap">
+            <input class="input" id="password" name="password" type="password" required minlength="6" autocomplete="new-password">
+            <button class="pw-toggle" type="button">Show</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="password2">Confirm Password</label>
+          <input class="input" id="password2" name="password2" type="password" required minlength="6" autocomplete="new-password">
+        </div>
+        <p class="hint">Register করে আপনি আমাদের <a href="{{ page_url('terms') }}">শর্তাবলী</a> মেনে নিচ্ছেন।</p>
+        <button class="btn btn-primary btn-block btn-lg" type="submit">Create Account</button>
+      </form>
+      <p class="auth-switch">আগেই অ্যাকাউন্ট আছে? <a href="{{ url_for('login', next=next) }}">Login করুন</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import flash_card %}
+{% block title %}Flash Sale - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <section class="flash-section">
+    <div class="flash-head"><h2>{{ icon('zap') }} Flash Sale</h2><span class="bn" style="font-size:14px">সীমিত সময় · সীমিত স্টক</span></div>
+    <div class="flash-body">
+      {% if sales %}
+      <div class="flash-grid">{% for f in sales %}{{ flash_card(f) }}{% endfor %}</div>
+      {% else %}
+      <div class="empty">{{ icon('zap') }}<div>এখন কোনো ফ্ল্যাশ সেল চলছে না। শীঘ্রই আসছে — Telegram গ্রুপে জয়েন করে থাকুন!</div></div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

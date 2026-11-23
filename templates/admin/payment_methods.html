@@ -1,0 +1,35 @@
+{% extends 'admin/base.html' %}
+{% block title %}Payment Numbers{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Payment Numbers (Send Money)</h1></div>
+<p class="muted small">Customers send money to these numbers and enter their TrxID. You verify in your bKash/Nagad/Rocket app, then approve. For fully automatic payments, add UddoktaPay in <a href="{{ url_for('admin.settings') }}">Settings</a>.</p>
+{% macro method_form(m, action, label) %}
+<form method="post" action="{{ action }}" class="form-grid">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="field"><label>Name</label><input class="input" name="name" value="{{ m.name or '' }}" required maxlength="30" placeholder="bKash"></div>
+  <div class="field"><label>Number</label><input class="input mono" name="number" value="{{ m.number or '' }}" required maxlength="20" placeholder="01XXXXXXXXX"></div>
+  <div class="field"><label>Account type</label>
+    <select class="select" name="account_type">{% for t in ['Personal', 'Agent', 'Merchant'] %}<option {% if m.account_type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  <div class="field"><label>Colour</label><input class="input" name="color" type="color" value="{{ m.color or '#e2136e' }}" style="height:44px;padding:4px"></div>
+  <div class="field full"><label>Instruction (shown to customer)</label><input class="input" name="instructions" value="{{ m.instructions or '' }}" maxlength="300" placeholder="bKash অ্যাপ থেকে Send Money করুন।"></div>
+  <div class="field"><label>Sort order</label><input class="input" name="sort_order" type="number" value="{{ m.sort_order or 0 }}"></div>
+  <div class="field" style="align-self:end"><label class="check"><input type="checkbox" name="is_active" value="1" {% if m.is_active is not defined or m.is_active %}checked{% endif %}> Active</label></div>
+  <div class="full actions">
+    <button class="btn btn-primary btn-sm" type="submit">{{ label }}</button>
+    {% if m.id %}<button class="btn btn-ghost btn-sm" name="delete" value="1" data-confirm="Delete {{ m.name }}?">{{ icon('trash') }} Delete</button>{% endif %}
+  </div>
+</form>
+{% endmacro %}
+<div class="grid-2">
+{% for m in rows %}
+  <section class="card">
+    <div class="card-head"><span class="mlogo" style="background:{{ m.color }}">{{ m.name }}</span><h3>{{ m.number }}</h3>{% if not m.is_active %}<span class="badge badge-bad">Off</span>{% endif %}</div>
+    <div class="card-body">{{ method_form(m, url_for('admin.payment_method_update', mid=m.id), 'Save') }}</div>
+  </section>
+{% endfor %}
+  <section class="card" style="border-style:dashed">
+    <div class="card-head">{{ icon('plus') }}<h3>Add method</h3></div>
+    <div class="card-body">{{ method_form({}, url_for('admin.payment_methods'), 'Add') }}</div>
+  </section>
+</div>
+{% endblock %}

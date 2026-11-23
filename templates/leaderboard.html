@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Leaderboard - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <h1 class="page-title">{{ icon('award') }} Top Buyers</h1>
+  {% if rows %}
+  {% set top = rows[:3] %}
+  {% if top|length == 3 %}
+  <div class="podium">
+    {% for i in [1, 0, 2] %}{% set r = top[i] %}
+    <div class="{{ 'first' if i == 0 }}">
+      {{ avatar(r.name, r.avatar, 'lg' if i == 0 else '') }}
+      <b>{{ ['🥇','🥈','🥉'][i] }} {{ r.name }}</b>
+      <span>{{ r.total|money }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <section class="card">
+    <ul class="list">
+      {% for r in rows %}
+      <li class="list-item">
+        <span class="rank">{{ loop.index }}</span>
+        {{ avatar(r.name, r.avatar) }}
+        <div class="main"><b>{{ r.name }}</b><span>{{ r.orders }} orders</span></div>
+        <div class="side"><b style="color:var(--primary)">{{ r.total|money }}</b></div>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% else %}
+  <div class="card empty">{{ icon('award') }}<div>এখনো কোনো ডাটা নেই।</div></div>
+  {% endif %}
+</div>
+{% endblock %}

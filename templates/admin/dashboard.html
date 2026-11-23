@@ -1,0 +1,52 @@
+{% extends 'admin/base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Dashboard</h1><span class="muted small">Welcome, {{ U.name }}</span></div>
+
+{% if placeholder_numbers %}
+<div class="alert-box">⚠️ {{ placeholder_numbers|map(attribute='name')|join(', ') }} নম্বর এখনও placeholder (01XXXXXXXXX)। <a href="{{ url_for('admin.payment_methods') }}">Payment Numbers</a> থেকে আপনার আসল নম্বর দিন।</div>
+{% endif %}
+{% if S.telegram_support == 'https://t.me/' %}
+<div class="alert-box">⚠️ Telegram লিংক সেট করা হয়নি। <a href="{{ url_for('admin.settings') }}">Settings</a> থেকে দিন।</div>
+{% endif %}
+
+{% if low_stock %}
+<div class="alert-box">⚠️ Voucher stock low:
+  {% for k in low_stock %}<a href="{{ url_for('admin.package_codes', kid=k.id) }}"><b>{{ k.name }}</b> ({{ k.n }} left)</a>{{ ', ' if not loop.last }}{% endfor %}
+  — upload more codes.</div>
+{% endif %}
+
+<div class="kpis">
+  <div class="card kpi {{ 'alert' if stats.to_deliver }}"><small>To deliver (paid)</small><b>{{ stats.to_deliver }}</b><br><a href="{{ url_for('admin.orders', f='deliver') }}">Open →</a></div>
+  <div class="card kpi {{ 'alert' if stats.to_verify }}"><small>Payments to verify</small><b>{{ stats.to_verify }}</b><br><a href="{{ url_for('admin.orders', f='verify') }}">Open →</a></div>
+  <div class="card kpi {{ 'alert' if stats.wallet_pending }}"><small>Add money requests</small><b>{{ stats.wallet_pending }}</b><br><a href="{{ url_for('admin.wallet_requests') }}">Open →</a></div>
+  <div class="card kpi"><small>Today's sales</small><b>{{ stats.today_sales|money }}</b><br><span class="small muted">{{ stats.today_orders }} orders today</span></div>
+  <div class="card kpi"><small>Total sales</small><b>{{ stats.total_sales|money }}</b></div>
+  <div class="card kpi"><small>Users</small><b>{{ stats.users }}</b></div>
+  <div class="card kpi"><small>All wallet balances</small><b>{{ stats.wallet_total|money }}</b></div>
+</div>
+
+<section class="card">
+  <div class="card-head">{{ icon('clock') }}<h3>Order queue (oldest first)</h3></div>
+  {% if queue %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>#</th><th>Customer</th><th>Item</th><th>Player ID</th><th>Price</th><th>Payment</th><th>Time</th><th></th></tr></thead>
+    <tbody>
+    {% for o in queue %}
+      <tr>
+        <td>#{{ o.id }}</td><td>{{ o.user_name }}</td>
+        <td>{{ o.package_name }}{% if o.flash_sale_id %} <span class="badge badge-flash">Flash</span>{% endif %}<div class="small muted">{{ o.product_name }}</div></td>
+        <td class="mono">{{ o.player_id }} <button type="button" class="copy-btn" data-copy="{{ o.player_id }}">{{ icon('copy') }}</button></td>
+        <td>{{ o.price|money }}</td>
+        <td>{{ o.payment_method }} {{ status_badge(o.payment_status) }}</td>
+        <td class="small">{{ o.created_at|bdtime }}</td>
+        <td><a class="btn btn-sm btn-primary" href="{{ url_for('admin.order_detail', oid=o.id) }}">Open</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{{ icon('check-circle') }}<div>সব অর্ডার শেষ! 🎉</div></div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import product_image %}
+{% block title %}Gift Vouchers - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  {% include 'profile/_head.html' %}
+  <section class="card">
+    <div class="card-head">{{ icon('gift') }}<h3>My Gift Vouchers</h3></div>
+    {% if rows %}
+      {% for o in rows %}
+      <div class="vcard">
+        <div class="thumb">{{ product_image({'id': o.product_id or 0, 'image': o.image, 'name': o.product_name}) }}</div>
+        <div>
+          <h4>{{ o.package_name }}</h4>
+          <div class="meta">{{ o.product_name }} · #{{ o.id }} · {{ o.created_at|bdtime }} · {{ o.price|money }}</div>
+          {% if o.status == 'completed' and o.voucher_code %}
+            <div class="code-box">
+              <code>{{ o.voucher_code }}</code>
+              <button type="button" class="btn btn-primary btn-sm" data-copy="{{ o.voucher_code }}">{{ icon('copy') }} Copy Code</button>
+              {% if o.redeem_link %}<a class="btn btn-outline btn-sm" href="{{ o.redeem_link }}" target="_blank" rel="noopener">{{ icon('external') }} Redeem</a>{% endif %}
+            </div>
+          {% elif o.payment_status == 'awaiting' %}
+            <div class="code-pending">পেমেন্ট সম্পন্ন হয়নি। পেমেন্ট হলে কোডটি এখানে দেখাবে।</div>
+          {% else %}
+            <div class="code-pending">পেমেন্ট যাচাই করা হচ্ছে — যাচাই হলেই কোডটি এখানে দেখাবে।</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">{{ icon('gift') }}<div>এখনো কোনো গিফট ভাউচার কেনেননি।</div></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

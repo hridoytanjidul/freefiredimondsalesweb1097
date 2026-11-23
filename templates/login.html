@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import google_button %}
+{% block title %}Login - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="auth-wrap">
+    <div class="auth-hero">
+      <span class="eyebrow">Secure Account Access</span>
+      <h1>Welcome <span>Back</span></h1>
+      <p>Fast, secure and simple access to your {{ S.site_name }} account.</p>
+      <div class="bar"></div>
+    </div>
+    <div class="card auth-card">
+      <div class="top">
+        <span class="shield">{{ icon('shield') }}</span>
+        <div><b>Sign in to continue</b><span>Access your account securely</span></div>
+      </div>
+      {% if google_on %}
+      {{ google_button(next) }}
+      <div class="or-line">or sign in with email</div>
+      {% endif %}
+      <form method="post" action="{{ url_for('login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+        <div class="field">
+          <label for="identity">Email or Phone</label>
+          <input class="input" id="identity" name="identity" required autocomplete="username" placeholder="you@example.com / 01XXXXXXXXX" value="{{ request.form.identity or '' }}">
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="pw-wrap">
+            <input class="input" id="password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+            <button class="pw-toggle" type="button">Show</button>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-block btn-lg" type="submit">{{ icon('lock') }} Login</button>
+      </form>
+      <p class="auth-switch">অ্যাকাউন্ট নেই? <a href="{{ url_for('register', next=next) }}">Register করুন</a></p>
+      <div class="trust">
+        <div><i>{{ icon('zap') }}</i>Fast<small>Instant access</small></div>
+        <div><i>{{ icon('check') }}</i>Secure<small>Safe login</small></div>
+        <div><i>{{ icon('award') }}</i>Trusted<small>Easy &amp; reliable</small></div>
+      </div>
+    </div>
+  </div>
+  <p class="center small muted">ভুলে গেছেন পাসওয়ার্ড? <a href="{{ S.telegram_support or url_for('contact') }}" target="_blank" rel="noopener">সাপোর্টে যোগাযোগ করুন</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends 'admin/base.html' %}
+{% block title %}Voucher Codes{% endblock %}
+{% block content %}
+<div class="admin-top"><h1>Voucher Codes</h1><a class="btn btn-primary" href="{{ url_for('admin.product_new') }}">{{ icon('plus') }} New Voucher Product</a></div>
+<p class="muted small">Gift voucher products deliver a code automatically after payment. Upload codes for each package; the stock a customer sees is the number of unused codes. To make a product a voucher, set its <b>Product type</b> to "Gift Voucher".</p>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Product</th><th>Package</th><th>Price</th><th>Available</th><th>Reserved</th><th>Delivered</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a href="{{ url_for('admin.product_edit', pid=r.product_id) }}">{{ r.product_name }}</a>{% if not r.is_active %} <span class="badge badge-bad">Hidden</span>{% endif %}</td>
+        <td><b>{{ r.name }}</b></td>
+        <td>{{ r.price|money }}</td>
+        <td>{% if (r.available or 0) == 0 %}<span class="badge badge-bad">0 — stock out</span>{% elif r.available < 3 %}<span class="badge badge-warn">{{ r.available }}</span>{% else %}<b>{{ r.available }}</b>{% endif %}</td>
+        <td>{{ r.reserved or 0 }}</td>
+        <td>{{ r.delivered or 0 }}</td>
+        <td><a class="btn btn-sm btn-primary" href="{{ url_for('admin.package_codes', kid=r.id) }}">{{ icon('plus') }} Manage codes</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty">{{ icon('gift') }}<div>কোনো গিফট ভাউচার প্রোডাক্ট নেই। একটি প্রোডাক্ট তৈরি করে Product type "Gift Voucher" দিন।</div></div>
+  {% endif %}
+</section>
+{% endblock %}

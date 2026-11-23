@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager %}
+{% block title %}Transactions - {{ S.site_name }}{% endblock %}
+{% block content %}
+<div class="container">
+  {% include 'profile/_head.html' %}
+  <section class="card">
+    <div class="card-head">{{ icon('list') }}<h3>Wallet Transactions</h3></div>
+    {% if txs %}
+    <ul class="list">
+      {% for t in txs %}
+      <li class="list-item">
+        <div class="main">
+          <b>{{ t.description or t.type|capitalize }}</b>
+          <span>{{ t.type|capitalize }} · {{ t.created_at|bdtime }}</span>
+        </div>
+        <div class="side">
+          <b class="{{ 'amt-pos' if t.amount > 0 else 'amt-neg' }}">{{ '+' if t.amount > 0 else '−' }}{{ (t.amount if t.amount > 0 else -t.amount)|money }}</b>
+          <span class="small muted">Balance {{ t.balance_after|money }}</span>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty">{{ icon('list') }}<div>এখনো কোনো লেনদেন নেই।</div></div>
+    {% endif %}
+  </section>
+  {{ pager(page, has_next, 'my_transactions') }}
+</div>
+{% endblock %}

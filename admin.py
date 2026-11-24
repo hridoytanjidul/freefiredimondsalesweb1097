@@ -639,7 +639,7 @@ def settings():
     import google_auth
     return render_template("admin/settings.html", nav="settings", google_redirect=google_auth.redirect_uri(),
                            ai_models=ai.MODELS, ai_usage=ai.usage_summary(g.settings), ai_live=ai.enabled(g.settings),
-                           ai_env_key=bool(os.environ.get("ANTHROPIC_API_KEY")))
+                           ai_env_key=bool(os.environ.get("ANTHROPIC_API_KEY")), ai_gateway=bool(ai.gateway_token()))
 
 
 def _ai_settings(f):
@@ -662,8 +662,8 @@ def _ai_settings(f):
         raise ValueError("AI প্রশ্নের সীমা ১ বা তার বেশি সংখ্যা দিন।")
     vals["ai_daily_limit"], vals["ai_user_limit"] = str(daily), str(per_user)
     vals["ai_extra_info"] = (f.get("ai_extra_info", s.get("ai_extra_info")) or "").strip()[:4000]
-    has_key = vals.get("ai_api_key", s.get("ai_api_key")) or os.environ.get("ANTHROPIC_API_KEY")
-    if f.get("ai_enabled") == "1" and not has_key:
+    has_access = vals.get("ai_api_key", s.get("ai_api_key")) or os.environ.get("ANTHROPIC_API_KEY") or ai.gateway_token()
+    if f.get("ai_enabled") == "1" and not has_access:
         raise ValueError("AI চালু করতে আগে Anthropic API key দিন।")
     return vals
 

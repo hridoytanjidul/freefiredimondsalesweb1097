@@ -3,6 +3,8 @@ customers, input checks, limits, refusals and API errors, and the admin settings
 from types import SimpleNamespace
 from unittest import mock
 
+import os
+
 import anthropic
 
 import ai
@@ -77,9 +79,19 @@ class AITests(StoreTest):
         settings(ai_enabled="1", ai_api_key=KEY, ai_model="claude-opus-5-5", ai_daily_limit=300, ai_user_limit=40,
                  ai_extra_info="")
         self.claude = FakeClaude()
-        p = mock.patch.object(ai, "client_for", lambda key: self.claude)
+        self.connections = []                   # (credential, base_url) of every client used
+
+        def fake_client(key, base_url=None):
+            self.connections.append((key, base_url))
+            return self.claude
+        p = mock.patch.object(ai, "client_for", fake_client)
         p.start()
         self.addCleanup(p.stop)
+        env = mock.patch.dict(os.environ)       # tests below may pretend to run on Vercel
+        env.start()
+        self.addCleanup(env.stop)
+        for k in ("VERCEL", "AI_GATEWAY_API_KEY"):
+            os.environ.pop(k, None)
 
     def last_call(self):
         return self.claude.calls[-1]
@@ -122,9 +134,10 @@ class AITests(StoreTest):
         self.assertEqual(system["cache_control"], {"type": "ephemeral"})
         for fact in ("UID TopUp (BD)", "115 Diamond ৳79", "01700000001", "Free Fire Voucher", "Refund", "/profile/addwallet"):
             self.assertIn(fact, system["text"])
-        self.assertEqual(kw["messages"][-2], {"role": "user", "content": "115 diamond er dam koto?"})
-        self.assertEqual(kw["messages"][-1]["role"], "system")
-        self.assertIn("not logged in", kw["messages"][-1]["content"])
+        self.assertEqual(kw["messages"], [{"role": "user", "content": "115 diamond er dam koto?"}])
+        self.assertNotIn("cache_control", kw["system"][1])                   # live facts come after the cache point
+        self.assertIn("not logged in", kw["system"][1]["text"])
+        self.assertEqual(self.connections[-1], (KEY, None))                  # straight to the Claude API
 
     def test_system_prompt_is_stable_for_caching(self):
         ask(client(), "a")
@@ -144,7 +157,7 @@ class AITests(StoreTest):
 
     def test_logged_in_customer_sees_only_own_orders(self):
         self.assertEqual(ask(client(self.rahim), "amar order kothay?").status_code, 200)
-        ctx = self.last_call()[1]["messages"][-1]["content"]
+        ctx = self.last_call()[1]["system"][1]["text"]
         for mine in ("Rahim", "৳321", "115 Diamond", "1111111111"):
             self.assertIn(mine, ctx)
         for theirs in ("Karim", "9999999999", "Wrong ID karim"):
@@ -164,6 +177,72 @@ class AITests(StoreTest):
         ask(client(), "hi")
         self.assertEqual(self.last_call()[1]["model"], ai.DEFAULT_MODEL)
 
+    # ------------------------------------------------------------------ no key: Vercel AI Gateway
+
+    def on_vercel(self):
+        os.environ["VERCEL"] = "1"
+        settings(ai_api_key="")
+        return {"x-vercel-oidc-token": "oidc-token-123"}
+
+    def test_runs_without_a_key_through_ai_gateway_on_vercel(self):
+        headers = self.on_vercel()
+        c = client()
+        self.assertIn('class="ai-fab"', c.get("/", headers=headers).get_data(as_text=True))
+        r = c.post("/api/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]},
+                   headers=dict(headers, **{"X-CSRF-Token": token(c)}))
+        self.assertEqual((r.status_code, r.get_data(as_text=True)), (200, "Hello from AI"))
+        kind, kw = self.last_call()
+        self.assertEqual((kind, kw["model"]), ("std", "anthropic/claude-opus-5.5"))
+        self.assertEqual(self.connections[-1], ("oidc-token-123", ai.GATEWAY_URL))
+        for not_for_gateway in ("betas", "fallbacks"):
+            self.assertNotIn(not_for_gateway, kw)
+        self.assertEqual(kw["system"][0]["cache_control"], {"type": "ephemeral"})
+        r.get_data()
+        self.assertEqual(rows("SELECT model FROM ai_usage")[0]["model"], "claude-opus-5-5")   # priced as the real model
+
+    def test_gateway_model_names(self):
+        headers = self.on_vercel()
+        for model, gateway_model in ai.GATEWAY_MODELS.items():
+            settings(ai_model=model)
+            c = client()
+            c.post("/api/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]},
+                   headers=dict(headers, **{"X-CSRF-Token": token(c)}), environ_base={"REMOTE_ADDR": "10.7.7.%d" % len(model)})
+            self.assertEqual(self.last_call()[1]["model"], gateway_model)
+
+    def test_gateway_api_key_also_works(self):
+        settings(ai_api_key="")
+        os.environ["AI_GATEWAY_API_KEY"] = "gw-key-1"
+        ask(client(), "hi")
+        self.assertEqual(self.connections[-1], ("gw-key-1", ai.GATEWAY_URL))
+
+    def test_own_anthropic_key_wins_over_gateway(self):
+        headers = self.on_vercel()
+        settings(ai_api_key=KEY)
+        c = client()
+        c.post("/api/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]},
+               headers=dict(headers, **{"X-CSRF-Token": token(c)}))
+        self.assertEqual(self.connections[-1], (KEY, None))
+        self.assertEqual(self.last_call()[0], "beta")                       # with refusal fallbacks
+
+    def test_token_header_is_ignored_off_vercel(self):
+        settings(ai_api_key="")                                             # VERCEL not set: a sent header can't switch AI on
+        c = client()
+        self.assertNotIn('class="ai-fab"', c.get("/", headers={"x-vercel-oidc-token": "fake"}).get_data(as_text=True))
+        r = c.post("/api/ai/chat", json={"messages": [{"role": "user", "content": "hi"}]},
+                   headers={"x-vercel-oidc-token": "fake", "X-CSRF-Token": token(c)})
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(self.claude.calls, [])
+
+    def test_admin_can_switch_on_without_key_on_vercel(self):
+        headers = self.on_vercel()
+        settings(ai_enabled="0")
+        base = {"site_name": "TopUp BD", "theme_color": "#663cbc", "min_wallet_amount": "20", "max_wallet_amount": "25000",
+                "ai_model": "claude-opus-5-5", "ai_daily_limit": "300", "ai_user_limit": "40", "ai_enabled": "1"}
+        base["csrf_token"] = token(self.admin, "/admin/settings")
+        page = self.admin.post("/admin/settings", data=base, headers=headers, follow_redirects=True).get_data(as_text=True)
+        self.assertIn("সেভ হয়েছে", page)
+        self.assertIn("via Vercel AI Gateway", self.admin.get("/admin/settings", headers=headers).get_data(as_text=True))
+
     # ------------------------------------------------------------------ input checks
 
     def test_rejects_bad_input(self):
@@ -181,7 +260,7 @@ class AITests(StoreTest):
         hist.append({"role": "user", "content": "last"})
         hist.insert(5, {"role": "user", "content": "double"})
         ask(client(), hist)
-        msgs = self.last_call()[1]["messages"][:-1]
+        msgs = self.last_call()[1]["messages"]
         self.assertLessEqual(len(msgs), ai.MAX_TURNS)
         self.assertEqual((msgs[0]["role"], msgs[-1]["content"]), ("user", "last"))
         for a, b in zip(msgs, msgs[1:]):
@@ -239,7 +318,7 @@ class AITests(StoreTest):
                 self.claude.next.append(FakeStream([], error=api_error(cls, status)))
                 r = ask(client(), "hi", ip="10.9.%d.1" % status)
                 self.assertEqual((r.status_code, r.get_data(as_text=True)), (200, expected), cls.__name__)
-        self.assertTrue(any("API key was rejected" in line for line in logged.output))
+        self.assertTrue(any("Anthropic API key credential was rejected" in line for line in logged.output))
 
     # ------------------------------------------------------------------ admin settings
 

@@ -12,7 +12,8 @@ import re
 from datetime import timedelta
 
 import anthropic
-from flask import Blueprint, Response, abort, current_app, g, jsonify, render_template, request, stream_with_context, url_for
+from flask import (Blueprint, Response, abort, current_app, g, has_request_context, jsonify, render_template, request,
+                   stream_with_context, url_for)
 
 import coupons
 import payments
@@ -38,6 +39,11 @@ PRICES = {"claude-opus-5-5": (4.00, 20.00, 0.20), "claude-sonnet-5-5": (2.00, 10
 # Haiku 5.5 has no server-side fallback, so it is called without it.
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 NO_SERVER_FALLBACK = {"claude-haiku-5-5"}
+# Without an Anthropic key, Claude is reached through Vercel AI Gateway, which signs in with the
+# deployment's own OIDC token (no key to create). Billed to the Vercel team's AI Gateway credits.
+GATEWAY_URL = "https://ai-gateway.vercel.sh"
+GATEWAY_MODELS = {"claude-opus-5-5": "anthropic/claude-opus-5.5", "claude-sonnet-5-5": "anthropic/claude-sonnet-5.5",
+                  "claude-haiku-5-5": "anthropic/claude-haiku-5.5"}
 
 MAX_TOKENS = 4096        # per answer; a cost cap for a public chat box (answers are short)
 MAX_TURNS = 12           # messages of history sent with each question
@@ -61,8 +67,32 @@ def api_key(settings):
     return (settings.get("ai_api_key") or os.environ.get("ANTHROPIC_API_KEY") or "").strip()
 
 
+def gateway_token():
+    """Vercel AI Gateway credential: an AI_GATEWAY_API_KEY if one is set, otherwise the OIDC token
+    Vercel attaches to every request of a deployed site (it rotates, so it's read per request).
+    The header is only trusted when actually running on Vercel."""
+    key = (os.environ.get("AI_GATEWAY_API_KEY") or "").strip()
+    if key:
+        return key
+    if os.environ.get("VERCEL") and has_request_context():
+        return (request.headers.get("x-vercel-oidc-token") or "").strip()
+    return ""
+
+
+def credentials(settings):
+    """How to reach Claude: ("anthropic", key) with the owner's Anthropic key, else ("gateway", token)
+    through Vercel AI Gateway, else (None, None)."""
+    key = api_key(settings)
+    if key:
+        return "anthropic", key
+    token = gateway_token()
+    if token:
+        return "gateway", token
+    return None, None
+
+
 def enabled(settings):
-    return settings.get("ai_enabled") == "1" and bool(api_key(settings))
+    return settings.get("ai_enabled") == "1" and credentials(settings)[0] is not None
 
 
 def model_for(settings):
@@ -73,12 +103,12 @@ def model_for(settings):
 _clients = {}
 
 
-def client_for(key):
-    """One client per API key (reused across requests on a warm server)."""
-    c = _clients.get(key)
+def client_for(key, base_url=None):
+    """One client per credential (reused across requests on a warm server)."""
+    c = _clients.get((key, base_url))
     if c is None:
         _clients.clear()
-        c = _clients[key] = anthropic.Anthropic(api_key=key, timeout=60.0, max_retries=2)
+        c = _clients[(key, base_url)] = anthropic.Anthropic(api_key=key, base_url=base_url, timeout=60.0, max_retries=2)
     return c
 
 
@@ -352,6 +382,7 @@ def chat():
     if err:
         return jsonify(error=err), 400
     model = model_for(settings)
+    mode, credential = credentials(settings)
     user = g.get("user")
     with tx() as db:
         err = check_and_count(db, settings, client_key(), user["id"] if user else None, model)
@@ -359,24 +390,27 @@ def chat():
         return jsonify(error=err), 429
 
     params = dict(
-        model=model,
+        model=GATEWAY_MODELS[model] if mode == "gateway" else model,
         max_tokens=MAX_TOKENS,
-        # Store facts first and unchanged between requests, so they're served from the prompt cache.
-        system=[{"type": "text", "text": system_prompt(settings), "cache_control": {"type": "ephemeral"}}],
-        # The question, then this request's live facts as an operator (system) message.
-        messages=msgs + [{"role": "system", "content": live_context(user)}],
+        # Store facts first and unchanged between requests, so they're served from the prompt cache;
+        # this request's live facts (time, flash sales, the customer's account) come after the cache point.
+        system=[{"type": "text", "text": system_prompt(settings), "cache_control": {"type": "ephemeral"}},
+                {"type": "text", "text": live_context(user)}],
+        messages=msgs,
         output_config={"effort": "low"},   # chat: quick, short answers
     )
-    client = client_for(api_key(settings))
+    client = client_for(credential, GATEWAY_URL if mode == "gateway" else None)
+    # Server-side refusal fallbacks are a Claude API beta; AI Gateway gets the plain request.
+    use_fallback = mode == "anthropic" and model not in NO_SERVER_FALLBACK
     usage_id = g.get("ai_usage_id")
 
     def generate():
         sent = False
         try:
-            if model in NO_SERVER_FALLBACK:
-                stream_cm = client.messages.stream(**params)
-            else:
+            if use_fallback:
                 stream_cm = client.beta.messages.stream(betas=[FALLBACK_BETA], fallbacks="default", **params)
+            else:
+                stream_cm = client.messages.stream(**params)
             with stream_cm as stream:
                 for text in stream.text_stream:
                     sent = True
@@ -389,11 +423,11 @@ def chat():
             u = final.usage
             if usage_id:
                 get_db().execute("UPDATE ai_usage SET model = ?, input_tokens = ?, output_tokens = ?, cache_read_tokens = ? WHERE id = ?",
-                                 (getattr(final, "model", model) or model,
+                                 (model,
                                   (u.input_tokens or 0) + (getattr(u, "cache_creation_input_tokens", 0) or 0),
                                   u.output_tokens or 0, getattr(u, "cache_read_input_tokens", 0) or 0, usage_id))
         except anthropic.AuthenticationError:
-            log.error("AI: the Anthropic API key was rejected")
+            log.error("AI: the %s credential was rejected", "Anthropic API key" if mode == "anthropic" else "AI Gateway")
             yield ("\n\n" if sent else "") + MSG_ERROR
         except (anthropic.RateLimitError, anthropic.InternalServerError):
             yield ("\n\n" if sent else "") + MSG_BUSY

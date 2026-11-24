@@ -1,8 +1,10 @@
 """Admin panel (/admin). Only users with is_admin = 1 can open it."""
+import os
 from datetime import datetime, timedelta
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
+import ai
 import coupons as coupon_lib
 from db import (InsufficientBalance, IntegrityError, cancel_order, credit, debit, deliver_voucher, expire_unpaid_gateway_orders, q,
                 save_settings, tx)
@@ -569,7 +571,7 @@ TEXT_FIELDS = ["site_name", "site_tagline", "meta_description", "notice_text", "
                "helpline_hours", "footer_text", "popup_text", "popup_button"]
 LINK_FIELDS = ["telegram_support", "telegram_group", "app_link", "popup_link"]
 URL_FIELDS = ["ff_id_checker_url", "uddoktapay_base_url"]
-CHECKBOXES = ["notice_enabled", "popup_enabled", "show_recent_orders"]
+CHECKBOXES = ["notice_enabled", "popup_enabled", "show_recent_orders", "ai_enabled"]
 IMAGE_FIELDS = ["logo", "favicon", "popup_image"]
 
 
@@ -615,6 +617,7 @@ def settings():
                 vals["google_client_secret"] = ""
             elif gsecret:
                 vals["google_client_secret"] = gsecret
+            vals.update(_ai_settings(f))
             old_files = []
             for k in IMAGE_FIELDS:
                 new = save_upload(request.files.get(k), k)
@@ -634,7 +637,35 @@ def settings():
         flash("সেটিংস সেভ হয়েছে।", "success")
         return redirect(url_for("admin.settings"))
     import google_auth
-    return render_template("admin/settings.html", nav="settings", google_redirect=google_auth.redirect_uri())
+    return render_template("admin/settings.html", nav="settings", google_redirect=google_auth.redirect_uri(),
+                           ai_models=ai.MODELS, ai_usage=ai.usage_summary(g.settings), ai_live=ai.enabled(g.settings),
+                           ai_env_key=bool(os.environ.get("ANTHROPIC_API_KEY")))
+
+
+def _ai_settings(f):
+    """AI assistant fields from the settings form. Fields missing from the form keep their saved value."""
+    s, vals = g.settings, {}
+    key = (f.get("ai_api_key") or "").strip()
+    if f.get("clear_ai_key") == "1":
+        vals["ai_api_key"] = ""
+    elif key:
+        if not key.startswith("sk-ant-"):
+            raise ValueError("Anthropic API key সাধারণত sk-ant- দিয়ে শুরু হয়। Key টি আবার কপি করে দিন।")
+        vals["ai_api_key"] = key
+    model = f.get("ai_model", s.get("ai_model")) or ai.DEFAULT_MODEL
+    if model not in ai.MODELS:
+        raise ValueError("AI model সঠিক নয়।")
+    vals["ai_model"] = model
+    daily = to_int(f.get("ai_daily_limit", s.get("ai_daily_limit")), None, lo=1, hi=100000)
+    per_user = to_int(f.get("ai_user_limit", s.get("ai_user_limit")), None, lo=1, hi=1000)
+    if daily is None or per_user is None:
+        raise ValueError("AI প্রশ্নের সীমা ১ বা তার বেশি সংখ্যা দিন।")
+    vals["ai_daily_limit"], vals["ai_user_limit"] = str(daily), str(per_user)
+    vals["ai_extra_info"] = (f.get("ai_extra_info", s.get("ai_extra_info")) or "").strip()[:4000]
+    has_key = vals.get("ai_api_key", s.get("ai_api_key")) or os.environ.get("ANTHROPIC_API_KEY")
+    if f.get("ai_enabled") == "1" and not has_key:
+        raise ValueError("AI চালু করতে আগে Anthropic API key দিন।")
+    return vals
 
 
 # =========================================================================== pages

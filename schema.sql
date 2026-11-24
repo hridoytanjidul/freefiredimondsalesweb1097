@@ -239,3 +239,18 @@ CREATE TABLE IF NOT EXISTS uploads (
     data        BLOB NOT NULL,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- AI assistant: one row per question, for rate limits and the admin's cost estimate.
+-- The conversation text is not stored.
+CREATE TABLE IF NOT EXISTS ai_usage (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_key          TEXT    NOT NULL,              -- u:<user id>, or ip:<hash> for visitors
+    user_id             INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    model               TEXT,
+    input_tokens        INTEGER NOT NULL DEFAULT 0,
+    output_tokens       INTEGER NOT NULL DEFAULT 0,
+    cache_read_tokens   INTEGER NOT NULL DEFAULT 0,
+    created_at          TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_client ON ai_usage(client_key, created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_time ON ai_usage(created_at);

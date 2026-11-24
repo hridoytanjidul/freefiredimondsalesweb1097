@@ -189,6 +189,12 @@ DEFAULT_SETTINGS = {
     "spin_cooldown_hours": "24",
     "spin_min_orders": "1",          # completed orders needed before a customer can spin (stops fake accounts)
     "spin_daily_budget": "0",        # max wallet taka given away per day, 0 = no limit
+    "ai_enabled": "0",               # AI assistant (needs an Anthropic API key)
+    "ai_api_key": "",
+    "ai_model": "claude-opus-5-5",
+    "ai_daily_limit": "300",         # questions per day for the whole site (cost cap)
+    "ai_user_limit": "40",           # questions per day per customer / visitor
+    "ai_extra_info": "",             # extra facts the owner wants the AI to know
 }
 
 

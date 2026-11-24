@@ -148,6 +148,30 @@ The server picks the prize with secure randomness, and the wheel only animates t
 - **Profile photos:** the customer's Google photo appears in the header, recent orders and leaderboard.
 - **Email login:** customers who signed up with Google can set a password in their profile if they also want email login.
 
+## AI assistant
+
+A **🤖 AI** button on every page (and the page `/ai`, linked as **AI Help** in the header and footer) opens a chat where customers can ask, in Bangla or English:
+
+- **About your store:** prices, how to order, Player ID, payment numbers, Add Money, coupons, flash sales, gift vouchers, the spin wheel and your policies.
+- **About their own account** (when logged in): wallet balance and the status of their latest orders and Add Money requests.
+- **About Free Fire:** gameplay, characters, weapons, ranks, events and account safety.
+
+It answers from your live catalogue, payment numbers and policy pages, so there's nothing to type in for it. It won't invent prices or codes, never asks for passwords or PINs, warns about "free diamond" scams, and sends customers to your Telegram support when a person is needed. It can't change orders or payments.
+
+**To turn it on:**
+
+1. Create an account at [platform.claude.com](https://platform.claude.com), add some credit under **Billing**, and create a key under **API keys**.
+2. In **Admin → Settings → AI Assistant**, paste the key, tick **Show the AI assistant on the website**, and save.
+
+**Settings:**
+
+- **Model:** Claude Opus 5.5 (best answers, the default), Claude Sonnet 5.5 (about half the cost) or Claude Haiku 5.5 (cheapest).
+- **Daily limits:** questions per day for the whole site (your cost cap) and per customer or visitor. Anyone can also ask at most 12 questions in 10 minutes.
+- **Extra things the AI should know:** for example your delivery hours.
+- **Usage:** the settings page shows today's questions and an estimated cost.
+
+The chat text isn't saved on your server; only a count per question is kept, for the limits. You can also set the key as the `ANTHROPIC_API_KEY` environment variable in Vercel instead of saving it in Settings.
+
 ### Free Fire ID name checker (optional)
 
 In **Settings**, paste any player-info API URL with `{uid}` where the ID goes. A "check name" button then appears on the product page and on `/free-fire-id-checker`.
@@ -205,6 +229,7 @@ If you don't set `SECRET_KEY`, one is generated and stored in `instance/secret_k
 app.py          customer site: pages, wallet, profile, gateway return/webhook
 checkout.py     shared order + payment logic (wallet / Send Money / Instant Pay, coupons, voucher codes)
 coupons.py      coupon rules + the checkout "Apply" API
+ai.py           AI assistant: chat page (/ai), chat API, what the AI knows, limits
 spin.py         spin wheel page, prize draw and spin API (/spin)
 flashsale.py    flash sale pages and ordering (/flashsale)
 google_auth.py  Sign in with Google (/auth/google, /social-callback)
@@ -218,7 +243,16 @@ schema.sql      database tables
 vercel.json     Vercel settings (Singapore region, static file caching)
 templates/      HTML pages (public, profile/, admin/)
 public/static/  css/style.css, js/app.js, img/ (served by Vercel's CDN)
+tests/          automated tests (python3 -m unittest discover tests)
 ```
+
+## Tests
+
+```bash
+python3 -m unittest discover tests
+```
+
+The tests use a temporary database and a stand-in for the Claude API, so they need no API key and cost nothing. To run them against Postgres, set `TEST_DATABASE_URL` to an **empty** test database, which they wipe.
 
 ## Security built in
 

@@ -71,6 +71,31 @@
     </div>
   </fieldset>
 
+  <fieldset><legend>🤖 AI Assistant</legend>
+    <p class="hint" style="margin-top:0">An AI chat on every page (and at <span class="mono">/ai</span>) that answers customers' questions about your store and about Free Fire, in Bangla or English. It already knows your products, prices, payment numbers and policies, and each logged-in customer's own orders. It runs on Claude from Anthropic: create an account at <a href="https://platform.claude.com" target="_blank" rel="noopener">platform.claude.com</a>, add some credit under Billing, then create a key under <b>API keys</b> and paste it below.</p>
+    <p style="margin:0 0 12px">
+      {% if ai_live %}<span class="badge badge-ok">Live on the website</span>
+      {% elif S.ai_enabled == '1' %}<span class="badge badge-warn">On, but no API key</span>
+      {% else %}<span class="badge badge-bad">Off</span>{% endif %}
+      <span class="small muted" style="margin-left:8px">Today: <b>{{ ai_usage.today.questions }}</b> / {{ ai_usage.limit }} questions · about <b>${{ '%.2f'|format(ai_usage.today.usd) }}</b> · last 30 days: {{ ai_usage.month.questions }} questions, about ${{ '%.2f'|format(ai_usage.month.usd) }}</span>
+    </p>
+    <div class="form-grid">
+      <div class="field full"><label class="check"><input type="checkbox" name="ai_enabled" value="1" {% if S.ai_enabled == '1' %}checked{% endif %}> Show the AI assistant on the website</label></div>
+      <div class="field"><label>Anthropic API key {% if S.ai_api_key %}<span class="badge badge-ok">saved</span>{% elif ai_env_key %}<span class="badge badge-ok">from ANTHROPIC_API_KEY</span>{% endif %}</label>
+        <input class="input" name="ai_api_key" type="password" autocomplete="off" placeholder="{{ 'Leave empty to keep the saved key' if S.ai_api_key else 'sk-ant-...' }}">
+        {% if S.ai_api_key %}<label class="check"><input type="checkbox" name="clear_ai_key" value="1"> Remove saved key</label>{% endif %}</div>
+      <div class="field"><label>Model</label>
+        <select class="select" name="ai_model">
+          {% for mid, label in ai_models.items() %}<option value="{{ mid }}" {% if (S.ai_model or 'claude-opus-5-5') == mid %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></div>
+      <div class="field"><label>Questions per day — whole site (cost limit)</label><input class="input" name="ai_daily_limit" type="number" min="1" max="100000" value="{{ S.ai_daily_limit }}"></div>
+      <div class="field"><label>Questions per day — each customer / visitor</label><input class="input" name="ai_user_limit" type="number" min="1" max="1000" value="{{ S.ai_user_limit }}"></div>
+      <div class="field full"><label>Extra things the AI should know (optional)</label>
+        <textarea class="textarea" name="ai_extra_info" rows="4" maxlength="4000" placeholder="e.g. Orders are delivered from 8 AM to 12 AM. We don't sell accounts. Weekly membership is delivered within 10 minutes.">{{ S.ai_extra_info }}</textarea>
+        <p class="hint">Your products, prices, payment numbers and policy pages are added automatically. Customers can also ask at most 12 questions in 10 minutes. The chat text itself is not saved.</p></div>
+    </div>
+  </fieldset>
+
   <fieldset><legend>Free Fire ID checker (optional)</legend>
     <div class="field" style="margin:0"><label>Checker API URL — use <span class="mono">{uid}</span> where the player ID goes</label>
       <input class="input" name="ff_id_checker_url" value="{{ S.ff_id_checker_url }}" placeholder="https://your-checker-api.example/info?uid={uid}">

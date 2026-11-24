@@ -11,7 +11,7 @@
   <meta property="og:site_name" content="{{ S.site_name }}">
   <meta property="og:title" content="{{ self.title() }}">
   <meta property="og:description" content="{{ S.meta_description }}">
-  {% if S.logo %}<meta property="og:image" content="{{ url_for('static', filename='uploads/' ~ S.logo, _external=True) }}">{% endif %}
+  {% if S.logo %}<meta property="og:image" content="{{ url_for('media', name=S.logo, _external=True) }}">{% endif %}
   {% if S.favicon %}
   <link rel="icon" href="{{ upload_url(S.favicon) }}">
   {% else %}
@@ -45,6 +45,7 @@
       {% if S.spin_enabled == '1' %}<a class="desk" href="{{ url_for('spin.page') }}">🎡 Spin</a>{% endif %}
       <a class="desk" href="{{ url_for('shop') }}">Topup</a>
       <a class="desk" href="{{ url_for('leaderboard') }}">Leaderboard</a>
+      {% if ai_on %}<a class="desk" href="{{ url_for('ai.page') }}">🤖 AI Help</a>{% endif %}
       <a class="desk" href="{{ url_for('contact') }}">Contact Us</a>
       {% if U %}
         {% if U.is_admin %}<a class="admin-chip" href="{{ url_for('admin.dashboard') }}" title="Admin Panel">{{ icon('settings') }} <span class="admin-chip-text">Admin Panel</span></a>{% endif %}
@@ -116,12 +117,20 @@
       <a href="{{ page_url('privacy') }}">Privacy Policy</a>
       <a href="{{ page_url('refund') }}">Refund &amp; Return Policy</a>
       <a href="{{ page_url('delete-account') }}">Delete Account Policy</a>
+      {% if ai_on %}<a href="{{ url_for('ai.page') }}">AI Help</a>{% endif %}
     </nav>
     <div class="copy">© {{ now_year }} {{ S.site_name }} · All Rights Reserved</div>
   </div>
 </footer>
 
 {% block floating %}
+{% if ai_on and request.endpoint != 'ai.page' %}
+{% from '_ai_widget.html' import ai_chat with context %}
+<button type="button" class="ai-fab" data-ai-open aria-label="AI সহায়ক খুলুন" aria-controls="ai-panel">
+  <span aria-hidden="true">🤖</span><b>AI</b>
+</button>
+{{ ai_chat() }}
+{% endif %}
 <div class="help-float">
   <a class="help-pill" href="{{ S.telegram_support or url_for('contact') }}" target="_blank" rel="noopener">{{ icon('chat') }} সাহায্য লাগবে ?</a>
   <a class="help-btn" href="{{ S.telegram_support or url_for('contact') }}" target="_blank" rel="noopener" aria-label="Help">{{ icon('headset') }}</a>

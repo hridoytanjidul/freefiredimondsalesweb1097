@@ -1,0 +1,31 @@
+{# AI chat box. As a floating panel on every page (page_mode=False), or inline on /ai (page_mode=True). #}
+{% macro ai_chat(page_mode=False) %}
+<section class="ai-panel{{ ' ai-page' if page_mode }}" id="ai-panel" data-uid="{{ U.id if U else 0 }}" {% if not page_mode %}hidden{% endif %} aria-label="AI Help">
+  <header class="ai-head">
+    <span class="ai-avatar" aria-hidden="true">🤖</span>
+    <div class="ai-title"><b>AI সহায়ক</b><small>{{ S.site_name }} ও Free Fire নিয়ে প্রশ্ন করুন</small></div>
+    <button type="button" class="ai-icon-btn" data-ai-reset title="নতুন চ্যাট" aria-label="New chat">{{ icon('refresh') }}</button>
+    {% if not page_mode %}
+    <a class="ai-icon-btn" href="{{ url_for('ai.page') }}" title="Full screen" aria-label="Open full screen">{{ icon('external') }}</a>
+    <button type="button" class="ai-icon-btn" data-ai-close aria-label="Close">{{ icon('x') }}</button>
+    {% endif %}
+  </header>
+  <div class="ai-log" id="ai-log" aria-live="polite">
+    <div class="ai-msg ai-bot ai-welcome">
+      আসসালামু আলাইকুম! 👋 আমি {{ S.site_name }} এর AI সহায়ক। ডায়মন্ডের দাম, অর্ডার, পেমেন্ট, ওয়ালেট — অথবা Free Fire গেম নিয়ে যেকোনো প্রশ্ন করুন।
+      <div class="ai-chips">
+        <button type="button" data-ai-ask="কিভাবে ডায়মন্ড অর্ডার করব?">কিভাবে অর্ডার করব?</button>
+        <button type="button" data-ai-ask="১১৫ ডায়মন্ডের দাম কত?">১১৫ ডায়মন্ডের দাম?</button>
+        <button type="button" data-ai-ask="বিকাশে কিভাবে পেমেন্ট করব?">বিকাশে পেমেন্ট</button>
+        {% if U %}<button type="button" data-ai-ask="আমার শেষ অর্ডারের অবস্থা কী?">আমার অর্ডার কোথায়?</button>{% endif %}
+        <button type="button" data-ai-ask="Free Fire এ rank push করার টিপস দাও">Rank push টিপস</button>
+      </div>
+    </div>
+  </div>
+  <form class="ai-form" id="ai-form" autocomplete="off">
+    <textarea id="ai-input" rows="1" maxlength="1000" placeholder="আপনার প্রশ্ন লিখুন..." aria-label="Your question"></textarea>
+    <button type="submit" class="ai-send" aria-label="Send">{{ icon('send') }}</button>
+  </form>
+  <p class="ai-foot">AI ভুল করতে পারে। অর্ডার বা পেমেন্টের সমস্যায় <a href="{{ S.telegram_support if S.telegram_support and S.telegram_support.rstrip('/') not in ('https://t.me', 'http://t.me') else url_for('contact') }}" target="_blank" rel="noopener">Support</a> এ যোগাযোগ করুন।</p>
+</section>
+{% endmacro %}

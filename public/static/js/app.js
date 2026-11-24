@@ -390,6 +390,148 @@
     });
   });
 
+  /* ------------------------------------------------ AI assistant */
+  var aiEsc = function (s) {
+    return s.replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; });
+  };
+  // runs on already-escaped text: links only to this site's pages ("/path", never "//host") or https:// pages
+  var aiInline = function (s) {
+    s = s.replace(/\[([^\]]+)\]\((\/(?![\/\\])[^\s)\\]*|https:\/\/[^\s)\\]+)\)/g, function (m, label, url) {
+      var ext = url.indexOf("https://") === 0;
+      return '<a href="' + url + '"' + (ext ? ' target="_blank" rel="noopener nofollow"' : "") + ">" + label + "</a>";
+    });
+    return s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  };
+  var aiMarkdown = function (text) {
+    var out = [], para = [], list = null;
+    var flushPara = function () { if (para.length) { out.push("<p>" + para.join("<br>") + "</p>"); para = []; } };
+    var flushList = function () { if (list) { out.push("<" + list.tag + ">" + list.items.join("") + "</" + list.tag + ">"); list = null; } };
+    aiEsc(text).split("\n").forEach(function (raw) {
+      var line = raw.trim(), m;
+      if (!line) { flushPara(); flushList(); return; }
+      if ((m = line.match(/^[-*•]\s+(.*)$/)) || (m = line.match(/^\d+[.)]\s+(.*)$/))) {
+        var tag = /^\d/.test(line) ? "ol" : "ul";
+        flushPara();
+        if (!list || list.tag !== tag) { flushList(); list = { tag: tag, items: [] }; }
+        list.items.push("<li>" + aiInline(m[1]) + "</li>");
+        return;
+      }
+      flushList();
+      para.push(aiInline(line.replace(/^#{1,4}\s+(.*)$/, "**$1**")));
+    });
+    flushPara(); flushList();
+    return out.join("");
+  };
+
+  var aiPanel = $("#ai-panel");
+  if (aiPanel) {
+    var aiLog = $("#ai-log", aiPanel), aiForm = $("#ai-form", aiPanel), aiInput = $("#ai-input", aiPanel);
+    var aiSend = $(".ai-send", aiPanel), aiWelcome = $(".ai-welcome", aiPanel);
+    var AI_KEY = "ai_chat_v1", aiBusy = false, aiHist = [];
+    var aiUser = aiPanel.getAttribute("data-uid") || "0";
+    try {
+      var saved = JSON.parse((ss && ss.getItem(AI_KEY)) || "{}");
+      if (saved && saved.uid === aiUser && Array.isArray(saved.messages)) aiHist = saved.messages;  // another login: start fresh
+    } catch (e) { aiHist = []; }
+    var aiSave = function () {
+      aiHist = aiHist.slice(-20);
+      try { if (ss) ss.setItem(AI_KEY, JSON.stringify({ uid: aiUser, messages: aiHist })); } catch (e) { /* private mode */ }
+    };
+    var aiScroll = function () { aiLog.scrollTop = aiLog.scrollHeight; };
+    var aiBubble = function (role, text, isError) {
+      var d = document.createElement("div");
+      d.className = "ai-msg " + (role === "user" ? "ai-user" : "ai-bot") + (isError ? " ai-error" : "");
+      if (role === "user") d.textContent = text; else d.innerHTML = aiMarkdown(text);
+      aiLog.appendChild(d);
+      aiScroll();
+      return d;
+    };
+    aiHist.forEach(function (m) { aiBubble(m.role, m.content); });
+
+    var aiOpen = function () {
+      aiPanel.hidden = false;
+      document.body.classList.add("ai-open");
+      setTimeout(function () { aiScroll(); aiInput.focus(); }, 30);
+    };
+    var aiClose = function () { aiPanel.hidden = true; document.body.classList.remove("ai-open"); };
+    $$("[data-ai-open]").forEach(function (b) { b.addEventListener("click", aiOpen); });
+    $$("[data-ai-close]", aiPanel).forEach(function (b) { b.addEventListener("click", aiClose); });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && !aiPanel.hidden && !aiPanel.classList.contains("ai-page")) aiClose();
+    });
+    var aiGrow = function () { aiInput.style.height = "auto"; aiInput.style.height = Math.min(aiInput.scrollHeight, 120) + "px"; };
+
+    var aiAsk = function (text) {
+      text = (text || "").trim();
+      if (!text || aiBusy) return;
+      if (text.length > 1000) { aiBubble("bot", "প্রশ্নটি অনেক বড় (সর্বোচ্চ ১০০০ অক্ষর)।", true); return; }
+      aiBusy = true; aiSend.disabled = true;
+      aiInput.value = ""; aiGrow();
+      aiHist.push({ role: "user", content: text });
+      aiBubble("user", text);
+      var bot = aiBubble("bot", "");
+      bot.innerHTML = '<span class="ai-typing" aria-label="typing"><i></i><i></i><i></i></span>';
+      var answer = "";
+      var show = function () { bot.innerHTML = aiMarkdown(answer); aiScroll(); };
+      var fail = function (msg) {   // forget the unanswered question so the chat stays consistent
+        if (aiHist.length && aiHist[aiHist.length - 1].role === "user") aiHist.pop();
+        aiSave();
+        bot.classList.add("ai-error");
+        bot.textContent = msg;
+        aiScroll();
+      };
+      fetch("/api/ai/chat", {
+        method: "POST", credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf, Accept: "text/plain" },
+        body: JSON.stringify({ messages: aiHist.slice(-12) })
+      }).then(function (r) {
+        if (!r.ok) {
+          return r.json().catch(function () { return {}; }).then(function (d) {
+            throw new Error(d.error || (r.status === 400 ? "পেজটি রিলোড করে আবার চেষ্টা করুন।" : "দুঃখিত, এখন উত্তর দেওয়া যাচ্ছে না।"));
+          });
+        }
+        if (!r.body || !r.body.getReader || !window.TextDecoder) return r.text().then(function (t) { answer = t; show(); });
+        var reader = r.body.getReader(), dec = new TextDecoder();
+        var pump = function () {
+          return reader.read().then(function (res) {
+            if (res.done) { answer += dec.decode(); show(); return; }
+            answer += dec.decode(res.value, { stream: true });
+            show();
+            return pump();
+          });
+        };
+        return pump();
+      }).then(function () {
+        if (!answer.trim()) { fail("দুঃখিত, এখন উত্তর দেওয়া যাচ্ছে না।"); return; }
+        aiHist.push({ role: "assistant", content: answer });
+        aiSave();
+      }).catch(function (err) {
+        fail(err && err.message && err.message.indexOf("Failed to fetch") < 0 ? err.message : "নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।");
+      }).then(function () {
+        aiBusy = false; aiSend.disabled = false;
+        aiInput.focus();
+      });
+    };
+
+    $$("[data-ai-ask]", aiPanel).forEach(function (b) {
+      b.addEventListener("click", function () { aiAsk(b.getAttribute("data-ai-ask")); });
+    });
+    $$("[data-ai-reset]", aiPanel).forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (aiBusy) return;
+        aiHist = []; aiSave();
+        $$(".ai-msg", aiLog).forEach(function (m) { if (m !== aiWelcome) m.parentNode.removeChild(m); });
+        aiInput.focus();
+      });
+    });
+    aiInput.addEventListener("input", aiGrow);
+    aiInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); aiAsk(aiInput.value); }
+    });
+    aiForm.addEventListener("submit", function (e) { e.preventDefault(); aiAsk(aiInput.value); });
+    if (aiPanel.classList.contains("ai-page")) aiScroll();
+  }
+
   /* ------------------------------------------------ confirm buttons */
   $$("[data-confirm]").forEach(function (el) {
     el.addEventListener("click", function (e) {

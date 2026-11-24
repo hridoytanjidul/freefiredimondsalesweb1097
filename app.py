@@ -14,6 +14,7 @@ from flask import (Flask, Response, abort, flash, g, jsonify, redirect, render_t
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash
 
+import ai
 import coupons
 import google_auth
 import payments
@@ -87,6 +88,7 @@ def create_app():
     app.register_blueprint(coupons.bp)
     from spin import bp as spin_bp
     app.register_blueprint(spin_bp)
+    app.register_blueprint(ai.bp)
     app.jinja_env.globals.update(product_url=product_url, coupon_label=coupons.label)
     register_routes(app)
     return app
@@ -111,7 +113,7 @@ def load_request_state():
 def template_context():
     s = g.get("settings", {})
     return {"S": s, "U": g.get("user"), "now_year": datetime.utcnow().year,
-            "google_on": google_auth.enabled(s), "has_flash": has_visible_sales()}
+            "google_on": google_auth.enabled(s), "has_flash": has_visible_sales(), "ai_on": ai.enabled(s)}
 
 
 def _find_nickname(obj, depth=0):

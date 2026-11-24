@@ -1,6 +1,6 @@
 """Admin panel (/admin). Only users with is_admin = 1 can open it."""
 import os
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
@@ -9,7 +9,7 @@ import coupons as coupon_lib
 from db import (InsufficientBalance, IntegrityError, cancel_order, credit, debit, deliver_voucher, expire_unpaid_gateway_orders, q,
                 save_settings, tx)
 from helpers import (HEX_COLOR_RE, admin_required, bd_input_to_utc, delete_upload, safe_link, safe_next,
-                     save_upload, slugify, to_int, utc_to_bd_input)
+                     save_upload, slugify, to_int, utc_to_bd_input, utcnow)
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -30,7 +30,7 @@ def _page():
 
 def _today_utc_start():
     """Start of today in Bangladesh time (UTC+6), expressed as a UTC timestamp string."""
-    bd_now = datetime.utcnow() + timedelta(hours=6)
+    bd_now = utcnow() + timedelta(hours=6)
     bd_midnight = bd_now.replace(hour=0, minute=0, second=0, microsecond=0)
     return (bd_midnight - timedelta(hours=6)).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1016,7 +1016,7 @@ def flash_new():
                        tuple(data.values()))
         flash("ফ্ল্যাশ সেল তৈরি হয়েছে।", "success")
         return redirect(url_for("admin.flash_sales"))
-    bd_now = datetime.utcnow() + timedelta(hours=6)
+    bd_now = utcnow() + timedelta(hours=6)
     return render_template("admin/flash_form.html", f={"is_active": 1, "per_user_limit": 1, "stock": 50},
                            pkgs=_package_choices(), nav="flash",
                            starts=bd_now.strftime("%Y-%m-%dT%H:%M"),

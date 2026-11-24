@@ -5,7 +5,7 @@ Production:    gunicorn -w 2 -b 0.0.0.0:8000 app:app
 """
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.parse import quote
 
 import requests
@@ -24,7 +24,7 @@ from db import IntegrityError, close_db, get_settings, init_db, q, tx
 from flashsale import has_visible_sales, visible_sales
 from helpers import (BD_PHONE_RE, EMAIL_RE, avatar_html, avatar_hue, bdtime, clean_digits, csrf_protect,
                      csrf_token, hash_password, icon, initials, login_required, money, safe_next,
-                     status_badge, to_int, upload_url)
+                     status_badge, to_int, upload_url, utcnow)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSET_VERSION = "11"
@@ -112,7 +112,7 @@ def load_request_state():
 
 def template_context():
     s = g.get("settings", {})
-    return {"S": s, "U": g.get("user"), "now_year": datetime.utcnow().year,
+    return {"S": s, "U": g.get("user"), "now_year": utcnow().year,
             "google_on": google_auth.enabled(s), "has_flash": has_visible_sales(), "ai_on": ai.enabled(s)}
 
 

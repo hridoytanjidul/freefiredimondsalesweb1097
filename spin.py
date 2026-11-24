@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, abort, g, jsonify, render_template
 
 from db import credit, get_db, q, tx
-from helpers import DB_FMT, to_int
+from helpers import DB_FMT, to_int, utcnow
 
 bp = Blueprint("spin", __name__)
 
@@ -28,7 +28,7 @@ def active_prizes(db=None):
 
 
 def bd_today_start_utc():
-    bd_now = datetime.utcnow() + timedelta(hours=6)
+    bd_now = utcnow() + timedelta(hours=6)
     return (bd_now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=6)).strftime(DB_FMT)
 
 
@@ -51,7 +51,7 @@ def status(user, db=None):
     last = db.execute("SELECT created_at FROM spins WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user["id"],)).fetchone()
     if last:
         next_at = datetime.strptime(last["created_at"][:19], DB_FMT) + timedelta(hours=cooldown_hours(s))
-        secs = int((next_at - datetime.utcnow()).total_seconds())
+        secs = int((next_at - utcnow()).total_seconds())
         if secs > 0:
             return {"state": "cooldown", "message": "আপনার পরের স্পিন:", "secs": secs}
     return {"state": "ready", "message": "আপনার ফ্রি স্পিন রেডি! 🎉", "secs": 0}

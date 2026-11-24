@@ -3,7 +3,7 @@ import hmac
 import re
 import secrets
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 from flask import abort, flash, g, redirect, request, session, url_for
@@ -208,6 +208,12 @@ BD_OFFSET = timedelta(hours=6)
 DB_FMT = "%Y-%m-%d %H:%M:%S"
 
 
+def utcnow():
+    """The current time in UTC, without a timezone attached: the same form the database stores
+    and compares. (Replaces datetime.utcnow(), which Python 3.12 deprecates.)"""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 def bd_input_to_utc(value):
     """'2026-11-23T20:00' typed in Bangladesh time (datetime-local input) -> UTC string for the DB."""
     dt = datetime.strptime((value or "").strip()[:16], "%Y-%m-%dT%H:%M")
@@ -223,7 +229,7 @@ def utc_to_bd_input(value):
 
 def seconds_until(utc_value):
     dt = datetime.strptime(str(utc_value)[:19], DB_FMT)
-    return max(0, int((dt - datetime.utcnow()).total_seconds()))
+    return max(0, int((dt - utcnow()).total_seconds()))
 
 
 STATUS_LABELS = {

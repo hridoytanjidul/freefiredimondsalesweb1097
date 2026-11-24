@@ -11,7 +11,7 @@ import sys
 import tempfile
 import threading
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
@@ -26,7 +26,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key")
 
 import db as dbmod  # noqa: E402
 from app import app  # noqa: E402
-from helpers import DB_FMT, hash_password  # noqa: E402
+from helpers import DB_FMT, hash_password, utcnow  # noqa: E402
 
 app.config["TESTING"] = True
 
@@ -96,7 +96,7 @@ def settings(**values):
 
 def ago(**delta):
     """A UTC timestamp string in the past (or future with negative values), as stored in the DB."""
-    return (datetime.utcnow() - timedelta(**delta)).strftime(DB_FMT)
+    return (utcnow() - timedelta(**delta)).strftime(DB_FMT)
 
 
 def make_user(name="Customer", email=None, balance=0, admin=False, phone=None, password_hash=None):

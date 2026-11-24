@@ -2,13 +2,14 @@
 stock returned on cancel or abandoned payment, and many buyers racing for the last items."""
 from datetime import datetime, timedelta
 
+from helpers import utcnow
 from support import (UID_TOPUP, StoreTest, admin_order, ago, balance, client, in_parallel, last_order, make_user,
                      messages, one, pkg, post, run, value)
 
 
 def bd_input(**delta):
     """A datetime-local value in Bangladesh time, as the admin form sends it."""
-    return (datetime.utcnow() + timedelta(hours=6) + timedelta(**delta)).strftime("%Y-%m-%dT%H:%M")
+    return (utcnow() + timedelta(hours=6) + timedelta(**delta)).strftime("%Y-%m-%dT%H:%M")
 
 
 def make_sale(package_id, price=30, stock=5, per_user=1, start=None, end=None, active=1):
@@ -40,7 +41,7 @@ class FlashSaleTests(StoreTest):
         f = one("SELECT * FROM flash_sales ORDER BY id DESC LIMIT 1")
         self.assertEqual((f["package_id"], f["sale_price"], f["stock"], f["sold"]), (self.p50, 30, 5, 0))
         starts = datetime.strptime(f["starts_at"], "%Y-%m-%d %H:%M:%S")
-        self.assertLess(abs((datetime.utcnow() - starts).total_seconds()), 180)   # BD time typed, stored as UTC
+        self.assertLess(abs((utcnow() - starts).total_seconds()), 180)   # BD time typed, stored as UTC
 
     def test_live_sale_sells_at_sale_price_once_per_customer(self):
         fid = make_sale(self.p50, price=30, stock=5, per_user=1)

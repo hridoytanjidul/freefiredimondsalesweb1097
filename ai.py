@@ -9,7 +9,7 @@ import html
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import anthropic
 from flask import Blueprint, Response, abort, current_app, g, jsonify, render_template, request, stream_with_context, url_for
@@ -19,7 +19,7 @@ import payments
 import spin as spin_lib
 from db import get_db, q, tx
 from flashsale import visible_sales
-from helpers import BD_OFFSET, DB_FMT, bdtime, money, to_int
+from helpers import BD_OFFSET, DB_FMT, bdtime, money, to_int, utcnow
 
 log = logging.getLogger(__name__)
 bp = Blueprint("ai", __name__)
@@ -218,7 +218,7 @@ def system_prompt(settings):
 def live_context(user):
     """Changes from request to request (time, flash sales, the customer's own account), so it goes in
     a system message after the question instead of the cached system prompt."""
-    now_bd = datetime.utcnow() + BD_OFFSET
+    now_bd = utcnow() + BD_OFFSET
     L = ["Live context — current time in Bangladesh: %s" % now_bd.strftime("%d %b %Y, %I:%M %p")]
     sales = [f for f in visible_sales(limit=6) if f["state"] in ("live", "upcoming")]
     if sales:
@@ -274,7 +274,7 @@ def _utc(dt):
 
 def check_and_count(db, settings, key, user_id, model):
     """Inside tx(): enforce the limits, then record this question. Returns an error message or None."""
-    since_burst = _utc(datetime.utcnow() - timedelta(minutes=BURST_WINDOW_MIN))
+    since_burst = _utc(utcnow() - timedelta(minutes=BURST_WINDOW_MIN))
     day_start = spin_lib.bd_today_start_utc()
     if db.execute("SELECT COUNT(*) FROM ai_usage WHERE client_key = ? AND created_at >= ?",
                   (key, since_burst)).fetchone()[0] >= BURST_MAX:
@@ -293,7 +293,7 @@ def check_and_count(db, settings, key, user_id, model):
 def usage_summary(settings):
     """Questions and estimated cost for the admin settings page."""
     day_start = spin_lib.bd_today_start_utc()
-    month_start = _utc(datetime.utcnow() - timedelta(days=30))
+    month_start = _utc(utcnow() - timedelta(days=30))
     out = {}
     for label, since in (("today", day_start), ("month", month_start)):
         rows = q("SELECT model, COUNT(*) AS n, COALESCE(SUM(input_tokens), 0) AS i, COALESCE(SUM(output_tokens), 0) AS o, "

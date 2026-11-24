@@ -243,16 +243,39 @@ schema.sql      database tables
 vercel.json     Vercel settings (Singapore region, static file caching)
 templates/      HTML pages (public, profile/, admin/)
 public/static/  css/style.css, js/app.js, img/ (served by Vercel's CDN)
-tests/          automated tests (python3 -m unittest discover tests)
+tests/          automated tests (python3 -m unittest discover -s tests)
 ```
 
 ## Tests
 
 ```bash
-python3 -m unittest discover tests
+python3 -m unittest discover -s tests
 ```
 
-The tests use a temporary database and a stand-in for the Claude API, so they need no API key and cost nothing. To run them against Postgres, set `TEST_DATABASE_URL` to an **empty** test database, which they wipe.
+About 120 automated tests run in roughly 10 seconds. Each group of tests gets a brand-new temporary database. Outside services (UddoktaPay, Google, the Claude API, the ID checker) are replaced with fakes, so the tests need no keys or internet and cost nothing.
+
+| File | What it checks |
+|---|---|
+| `test_accounts.py` | Register, login (email or phone, any capitals), logout, profile, passwords, banned users, CSRF, safe redirects, who can open admin pages |
+| `test_wallet_orders.py` | Add Money requests and approval, wallet orders, manual Send Money, complete/cancel/refund rules, TrxID reuse, balance adjustments, and many orders racing for one balance |
+| `test_gateway.py` | Instant Pay: orders and top-ups paid exactly once, wrong key/amount/invoice refused, unpaid orders expire, late payments go to the wallet |
+| `test_flash_sales.py` | Sale setup and states, sale price, per-customer limit, no coupon stacking, stock returned, and buyers racing for the last items |
+| `test_coupons_vouchers.py` | Every coupon rule, the price preview, cancel giving uses back, racing buyers; voucher code upload, delivery, holding, and racing for the last code |
+| `test_spin.py` | Who may spin, each prize type, cooldown, daily budget, admin settings, and many clicks giving one spin |
+| `test_google_login.py` | Sign in with Google: new and linked accounts, every rejected token, banned users, two first logins at once |
+| `test_ai.py` | The AI assistant: what it's told, privacy between customers, limits, errors, admin settings |
+| `test_site.py` | Every page, image uploads, admin catalogue and settings, the ID checker, and the Vercel safety checks |
+| `test_postgres_layer.py` | How the SQL is translated for Postgres |
+
+The "racing" tests send many requests at the same moment to prove that money and stock can't be double-spent.
+
+**On Postgres:** set `TEST_DATABASE_URL` to an **empty** test database (it gets wiped) to run the same tests there, plus two Postgres-only ones:
+
+```bash
+TEST_DATABASE_URL="postgresql://user@localhost/storetests" python3 -m unittest discover -s tests
+```
+
+Run the tests before every change you push, and add a test whenever you fix a bug.
 
 ## Security built in
 

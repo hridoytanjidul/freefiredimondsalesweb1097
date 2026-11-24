@@ -80,7 +80,7 @@ def claim(db, code, product_id, price, user_id):
 def public_coupons(product_id, user_id=None):
     """Coupons shown as tappable chips on a product page: public ones, plus the viewer's own
     unused personal coupons (e.g. won on the spin wheel)."""
-    return q("SELECT * FROM (SELECT *, " + TIMING_SQL + " FROM coupons) WHERE is_active = 1 "
+    return q("SELECT * FROM (SELECT *, " + TIMING_SQL + " FROM coupons) AS c WHERE is_active = 1 "
              "AND ((is_public = 1 AND user_id IS NULL) OR (user_id IS NOT NULL AND user_id = ?)) "
              "AND timing = 'ok' AND (product_id IS NULL OR product_id = ?) "
              "AND (usage_limit = 0 OR used < usage_limit) ORDER BY user_id IS NULL, id DESC LIMIT 6",

@@ -1,13 +1,12 @@
 """Shared helpers: auth guards, CSRF, uploads, validation, template filters, icons."""
 import hmac
-import os
 import re
 import secrets
 import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 
-from flask import abort, current_app, flash, g, redirect, request, session, url_for
+from flask import abort, flash, g, redirect, request, session, url_for
 from markupsafe import Markup
 from werkzeug.security import generate_password_hash
 
